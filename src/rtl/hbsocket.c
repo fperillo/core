@@ -49,7 +49,7 @@
 #include "hbsocket.h"
 
 #if ( defined( HB_OS_DOS ) && ! defined( HB_HAS_WATT ) ) || \
-   defined( HB_OS_SYMBIAN ) || defined( __TINYC__ )
+   defined( HB_OS_SYMBIAN ) || defined( __TINYC__ ) || defined( HB_OS_BB10 )
 #  if ! defined( HB_SOCKET_OFF )
 #     define HB_SOCKET_OFF
 #  endif

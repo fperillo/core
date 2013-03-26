@@ -943,6 +943,13 @@ ifeq ($(HB_COMPILER),)
             HB_COMPILER := gcc
          endif
       endif
+   else
+   ifeq ($(HB_PLATFORM),bb10)
+      HB_COMP_PATH := $(call find_in_path,ntox86-gcc)
+      ifneq ($(HB_COMP_PATH),)
+         HB_COMPILER := gcc
+      endif
+   endif
    endif
    endif
    endif
@@ -1545,6 +1552,9 @@ ifneq ($(HB_HOST_PLAT)$(HB_HOST_CPU),$(HB_PLATFORM)$(HB_CPU))
       ifeq ($(HB_PLATFORM),android)
          HB_PRGFLAGS += -D__PLATFORM__ANDROID -D__PLATFORM__UNIX
       else
+      ifeq ($(HB_PLATFORM),bb10)
+         HB_PRGFLAGS += -D__PLATFORM__BB10 -D__PLATFORM__UNIX
+      else
       ifeq ($(HB_PLATFORM),vxworks)
          HB_PRGFLAGS += -D__PLATFORM__VXWORKS -D__PLATFORM__UNIX
       else
@@ -1559,6 +1569,7 @@ ifneq ($(HB_HOST_PLAT)$(HB_HOST_CPU),$(HB_PLATFORM)$(HB_CPU))
       else
       ifeq ($(HB_PLATFORM),aix)
          HB_PRGFLAGS += -D__PLATFORM__AIX -D__PLATFORM__UNIX
+      endif
       endif
       endif
       endif

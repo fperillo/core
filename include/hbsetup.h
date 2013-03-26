@@ -411,6 +411,12 @@
    #endif
 #endif
 
+#ifndef HB_OS_BB10 /* Experimental */
+   #if defined( __BB10__ )
+      #define HB_OS_BB10
+   #endif
+#endif
+
 #ifndef HB_OS_CYGWIN
    #if defined( __CYGWIN__ )
       #define HB_OS_CYGWIN

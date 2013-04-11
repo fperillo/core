@@ -348,6 +348,7 @@ static HB_SYMB s___msgEnumIndex  = { "__ENUMINDEX",     {HB_FS_MESSAGE}, {HB_FUN
 static HB_SYMB s___msgEnumBase   = { "__ENUMBASE",      {HB_FS_MESSAGE}, {HB_FUNCNAME( msgNull )},       NULL };
 static HB_SYMB s___msgEnumKey    = { "__ENUMKEY",       {HB_FS_MESSAGE}, {HB_FUNCNAME( msgNull )},       NULL };
 static HB_SYMB s___msgEnumValue  = { "__ENUMVALUE",     {HB_FS_MESSAGE}, {HB_FUNCNAME( msgNull )},       NULL };
+static HB_SYMB s___msgEnumIsLast = { "__ENUMISLAST",    {HB_FS_MESSAGE}, {HB_FUNCNAME( msgNull )},       NULL };
 
 /* WITH OBJECT base value access/asign methods (:__withobject) */
 static HB_SYMB s___msgWithObjectPush = { "__WITHOBJECT",  {HB_FS_MESSAGE}, {HB_FUNCNAME( msgNull )},       NULL };
@@ -1179,6 +1180,7 @@ void hb_clsInit( void )
    s___msgEnumBase.pDynSym    = hb_dynsymGetCase( s___msgEnumBase.szName );
    s___msgEnumKey.pDynSym     = hb_dynsymGetCase( s___msgEnumKey.szName );
    s___msgEnumValue.pDynSym   = hb_dynsymGetCase( s___msgEnumValue.szName );
+   s___msgEnumIsLast.pDynSym  = hb_dynsymGetCase( s___msgEnumIsLast.szName );
 
    s___msgWithObjectPush.pDynSym = hb_dynsymGetCase( s___msgWithObjectPush.szName );
    s___msgWithObjectPop.pDynSym  = hb_dynsymGetCase( s___msgWithObjectPop.szName );
@@ -2007,6 +2009,17 @@ PHB_SYMB hb_objGetMethod( PHB_ITEM pObject, PHB_SYMB pMessage,
                if( hb_pcount() > 0 )
                   hb_itemCopy( pEnum, hb_itemUnRef( hb_stackItemFromBase( 1 ) ) );
                return &s___msgEnumValue;
+            }
+            else if( pMsg == s___msgEnumIsLast.pDynSym )
+            {
+               if( HB_IS_ARRAY( pEnum->item.asEnum.basePtr ) )
+                  hb_itemPutL( hb_stackReturnItem(), ( HB_SIZE ) pEnum->item.asEnum.offset >= hb_arrayLen( pEnum->item.asEnum.basePtr ) );
+               else if( HB_IS_HASH( pEnum->item.asEnum.basePtr ) )
+                  hb_itemPutL( hb_stackReturnItem(), ( HB_SIZE ) pEnum->item.asEnum.offset >= hb_hashLen( pEnum->item.asEnum.basePtr ) );
+               else if( HB_IS_STRING( pEnum->item.asEnum.basePtr ) )
+                  hb_itemPutL( hb_stackReturnItem(), ( HB_SIZE ) pEnum->item.asEnum.offset >= hb_itemGetCLen( pEnum->item.asEnum.basePtr ) );
+
+               return &s___msgEnumIsLast;
             }
          }
       }
@@ -4308,7 +4321,7 @@ HB_FUNC( __CLSPARENT )
             hb_clsIsParent( ( HB_USHORT ) hb_parni( 1 ), szParentName ) );
 }
 
-/* __sender() -> <obj> | NIL
+/* __Sender() -> <obj> | NIL
  * returns sender object
  */
 HB_FUNC( __SENDER )
@@ -5069,7 +5082,7 @@ void hb_mthAddTime( HB_ULONG ulClockTicks )
 }
 #endif
 
-/* __getMsgPrf( <hClass>, <cMsg> ) -> <aMethodInfo> { { <nTimes>, <nTime> }, ... }
+/* __GetMsgPrf( <hClass>, <cMsg> ) -> <aMethodInfo> { { <nTimes>, <nTime> }, ... }
  */
 HB_FUNC( __GETMSGPRF ) /* profiler: returns a method called and consumed times */
 {
@@ -5367,7 +5380,7 @@ HB_FUNC( __OBJRESTOREIVARS )
 }
 
 /* __clsGetProperties( <nClassHandle>, [<lAllExported>] ) -> <acProperties>
- * Notice that this function works quite similar to __CLASSSEL()
+ * Notice that this function works quite similar to __classSel()
  * except that just returns the name of the datas and methods
  * that have been declared as PROPERTY (PERSISTENT) or also EXPORTED
  * if second parameter <lAllExported> is true and message has corresponding
@@ -5494,7 +5507,7 @@ HB_FUNC( __CLSMSGTYPE )
  * for MT programs which will allocate dynamically at runtime
  * more then 16386 classes. In practice rather impossible though
  * who knows ;-)
- * __clsPreAllocate( [<nMaxClasses>] ) -> <nMaxClasses>
+ * __clsPreallocate( [<nMaxClasses>] ) -> <nMaxClasses>
  */
 HB_FUNC( __CLSPREALLOCATE )
 {

@@ -156,6 +156,8 @@ PHB_EXPR hb_compExprNewFunCall( PHB_EXPR pName, PHB_EXPR pParms, HB_COMP_DECL )
                szMessage = "__ENUMBASE";
             else if( iLen == 10 && memcmp( "KEY", szMessage, 3 ) == 0 )
                szMessage = "__ENUMKEY";
+            else if( iLen == 13 && memcmp( "ISLAST", szMessage, 6 ) == 0 )
+               szMessage = "__ENUMISLAST";
             else
                szMessage = NULL;
 
@@ -252,7 +254,7 @@ PHB_EXPR hb_compExprNewFunCall( PHB_EXPR pName, PHB_EXPR pParms, HB_COMP_DECL )
             /* replace:
                _GET_( a[1], "a[1]", , , )
                into:
-               __GETA( {||a }, "a", , , , { 1 } )
+               __GetA( {||a }, "a", , , , { 1 } )
              */
             PHB_EXPR pIndex, pVar;
             PHB_EXPR pBase;
@@ -302,7 +304,7 @@ PHB_EXPR hb_compExprNewFunCall( PHB_EXPR pName, PHB_EXPR pParms, HB_COMP_DECL )
              */
             pIndex = hb_compExprNewArray( hb_compExprNewList( pIndex, HB_COMP_PARAM ), HB_COMP_PARAM );
             /* The array with index elements have to be the sixth argument
-             * of __GETA() call
+             * of __GetA() call
              */
             uiCount = 1;
             while( ++uiCount < 6 )
@@ -358,8 +360,8 @@ PHB_EXPR hb_compExprNewFunCall( PHB_EXPR pName, PHB_EXPR pParms, HB_COMP_DECL )
          }
          else if( pArg->ExprType == HB_ET_MACRO )
          {
-            /* @ 0,0 GET &var    => __GET( NIL, var,... )
-             * @ 0,0 GET var&var => __GET( NIL, "var&var",... )
+            /* @ 0,0 GET &var    => __Get( NIL, var,... )
+             * @ 0,0 GET var&var => __Get( NIL, "var&var",... )
              */
             pName->value.asSymbol.name = "__GET";
             if( pArg->value.asMacro.pExprList == NULL )

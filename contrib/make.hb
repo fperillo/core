@@ -1,5 +1,4 @@
 #!/usr/bin/hbrun --hb:gtcgi
-
 /*
  * Harbour Project source code:
  * Package build orchestrator script
@@ -79,7 +78,7 @@ PROCEDURE Main( ... )
    hProjectList := { => }
    hb_HKeepOrder( hProjectList, .T. )
 
-   LoadProjectListFromFile( hProjectList, s_cHome + "hbplist" )
+   LoadProjectListFromFile( hProjectList, s_cHome + "hbplist.txt" )
    LoadProjectListFromString( hProjectList, GetEnv( "HB_BUILD_ADDONS" ) )
 
    aParams := hb_AParams()
@@ -763,7 +762,9 @@ PROCEDURE LoadProjectListFromFile( hProjectList, cFileName )
       IF "#" $ cItem
          cItem := Left( cItem, At( "#", cItem ) - 1 )
       ENDIF
-      AddProject( hProjectList, cItem )
+      IF hb_FileExists( s_cBase + s_cHome + cItem )
+         AddProject( hProjectList, cItem )
+      ENDIF
    NEXT
 
    RETURN
@@ -773,7 +774,9 @@ PROCEDURE LoadProjectListFromString( hProjectList, cString )
    LOCAL cItem
 
    FOR EACH cItem IN hb_ATokens( cString,, .T. )
-      AddProject( hProjectList, cItem )
+      IF hb_FileExists( s_cBase + s_cHome + cItem )
+         AddProject( hProjectList, cItem )
+      ENDIF
    NEXT
 
    RETURN

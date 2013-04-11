@@ -1,33 +1,16 @@
+# To validate, run:
+#   'git ls-files -i --exclude-standard'
+
 # build generated files
 /include/hbverbld.h
+bin/*/
+lib/*/
+obj
+.hbmk/
 *.hbl
 *.hbd
-
-# build targets
-aix/
-android/
-beos/
-bsd/
-cygwin/
-darwin/
-dos/
-hpux/
-linux/
-minix/
-os2/
-qnx/
-sunos/
-symbian/
-vxworks/
-wce/
-win/
-
-# misc build files
-.hbmk/
-
-# misc junk
-.DS_Store
-*.bak
+*.hbr
+*.hrb
 
 # 'install'-ed binaries
 *.exe
@@ -41,3 +24,17 @@ win/
 
 # packages
 /pkg/
+
+# not hosted contribs
+/addons/
+
+# misc junk
+.DS_Store
+*.bak
+
+# exceptions
+!libunicows.a
+!unicows.lib
+!lib/3rd
+!config/*.exe
+!/*.exe

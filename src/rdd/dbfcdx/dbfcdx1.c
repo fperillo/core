@@ -393,6 +393,10 @@ static int hb_cdxValCompare( LPCDXTAG pTag, const HB_BYTE * val1, int len1,
          else if( len1 < len2 && iMode == CDX_CMP_EXACT )
             iResult = -1;
       }
+      else if( iResult > 0 )
+         iResult = 1;
+      else
+         iResult = -1;
    }
    else if( iMode == CDX_CMP_DATE && iLimit == 8 )
    {
@@ -416,6 +420,10 @@ static int hb_cdxValCompare( LPCDXTAG pTag, const HB_BYTE * val1, int len1,
          else if( len1 < len2 )
             iResult = -1;
       }
+      else if( iResult > 0 )
+         iResult = 1;
+      else
+         iResult = -1;
    }
    return iResult;
 }
@@ -566,7 +574,7 @@ static LPCDXKEY hb_cdxKeyPutItem( LPCDXKEY pKey, PHB_ITEM pItem, HB_ULONG ulRec,
          ptr = NULL;
 #ifdef HB_CDX_DBGCODE
          /* TODO: RTerror */
-         printf( "hb_cdxKeyPutItem( invalid item type: %i )", hb_itemType( pItem ) );
+         printf( "hb_cdxKeyPutItem( invalid item type: %u )", hb_itemType( pItem ) );
 #endif
          break;
    }
@@ -1798,7 +1806,7 @@ static void hb_cdxPageLeafEncode( LPCDXPAGE pPage, HB_BYTE * pKeyBuf, int iKeys 
 #ifdef HB_CDX_DBGCODE
    if( pKeyPos - pRecPos != pPage->iFree )
    {
-      printf( "\r\nPage=0x%lx, calc=%d, iFree=%d, req=%d, keys=%d, keyLen=%d\r\n",
+      printf( "\r\nPage=0x%lx, calc=%d, iFree=%d, req=%u, keys=%d, keyLen=%d\r\n",
               pPage->Page, ( int ) ( pKeyPos - pRecPos ), pPage->iFree, pPage->ReqByte, iKeys, iNum );
       fflush( stdout );
       hb_cdxErrInternal( "hb_cdxPageLeafEncode: FreeSpace calculated wrong!" );
@@ -3476,6 +3484,7 @@ static void hb_cdxTagLoad( LPCDXTAG pTag )
    if( pTag->RootBlock == 0 || pTag->RootBlock % CDX_PAGELEN != 0 ||
        ( HB_FOFFSET ) pTag->RootBlock >= hb_fileSize( pTag->pIndex->pFile ) ||
        HB_GET_LE_UINT16( tagHeader.keySize ) > CDX_MAXKEY ||
+       uiKeyLen + uiForLen > CDX_HEADEREXPLEN ||
        uiForPos + uiForLen > CDX_HEADEREXPLEN ||
        uiKeyPos + uiKeyLen > CDX_HEADEREXPLEN ||
        ( uiKeyPos < uiForPos ? ( uiKeyPos + uiKeyLen > uiForPos && tagHeader.keyExpPool[ uiForPos ] ) :
@@ -3486,6 +3495,8 @@ static void hb_cdxTagLoad( LPCDXTAG pTag )
    }
 
    /* some wrong RDDs do not set expression length this is workaround for them */
+   if( uiKeyPos == 0 && uiKeyLen != 0 && uiForPos == 0 && uiForLen != 0 )
+      uiForPos = uiKeyLen;
    if( ! uiKeyLen )
       uiKeyLen = ( uiForPos >= uiKeyPos ? uiForPos : CDX_HEADEREXPLEN ) - uiKeyPos;
    if( ! uiForLen )
@@ -3825,9 +3836,9 @@ static int hb_cdxPageSeekKey( LPCDXPAGE pPage, LPCDXKEY pKey, HB_ULONG ulKeyRec 
           hb_cdxPageGetKeyRec( pPage, pPage->iCurKey ) !=
           hb_cdxPageGetKeyRec( pPage->Child, pPage->Child->iKeys - 1 ) )
       {
-         printf( "\r\nkeyLen=%d", pPage->TagParent->uiLen );
-         printf( "\r\nparent=%lx, iKey=%d, rec=%ld", pPage->Page, pPage->iCurKey, hb_cdxPageGetKeyRec( pPage, pPage->iCurKey ) );
-         printf( "\r\n child=%lx, iKey=%d, rec=%ld", pPage->Child->Page, pPage->Child->iKeys - 1, hb_cdxPageGetKeyRec( pPage->Child, pPage->Child->iKeys - 1 ) );
+         printf( "\r\nkeyLen=%u", pPage->TagParent->uiLen );
+         printf( "\r\nparent=%lx, iKey=%d, rec=%lu", pPage->Page, pPage->iCurKey, hb_cdxPageGetKeyRec( pPage, pPage->iCurKey ) );
+         printf( "\r\n child=%lx, iKey=%d, rec=%lu", pPage->Child->Page, pPage->Child->iKeys - 1, hb_cdxPageGetKeyRec( pPage->Child, pPage->Child->iKeys - 1 ) );
          printf( "\r\nparent val=[%s]", hb_cdxPageGetKeyVal( pPage, pPage->iCurKey ) );
          printf( "\r\n child val=[%s]", hb_cdxPageGetKeyVal( pPage->Child, pPage->Child->iKeys - 1 ) );
          fflush( stdout );
@@ -7233,7 +7244,8 @@ static HB_ERRCODE hb_cdxOrderListAdd( CDXAREAP pArea, LPDBORDERINFO pOrderInfo )
    do
    {
       pFile = hb_fileExtOpen( szFileName, NULL, uiFlags |
-                              FXO_DEFAULTS | FXO_SHARELOCK | FXO_COPYNAME,
+                              FXO_DEFAULTS | FXO_SHARELOCK | FXO_COPYNAME |
+                              FXO_NOSEEKPOS,
                               NULL, pError );
       if( ! pFile )
          bRetry = hb_cdxErrorRT( pArea, EG_OPEN, EDBF_OPEN_INDEX, szFileName,
@@ -7670,11 +7682,12 @@ static HB_ERRCODE hb_cdxOrderCreate( CDXAREAP pArea, LPDBORDERCREATEINFO pOrderI
             pFile = hb_fileExtOpen( szFileName, NULL, FO_READWRITE |
                                     ( fShared ? FO_DENYNONE : FO_EXCLUSIVE ) |
                                     ( fNewFile ? FXO_TRUNCATE : FXO_APPEND ) |
-                                    FXO_DEFAULTS | FXO_SHARELOCK | FXO_COPYNAME,
+                                    FXO_DEFAULTS | FXO_SHARELOCK | FXO_COPYNAME |
+                                    FXO_NOSEEKPOS,
                                     NULL, pError );
          }
          if( ! pFile )
-            bRetry = hb_cdxErrorRT( pArea, EG_CREATE, EDBF_CREATE, szFileName,
+            bRetry = hb_cdxErrorRT( pArea, EG_CREATE, EDBF_CREATE_INDEX, szFileName,
                                     hb_fsError(), EF_CANRETRY | EF_CANDEFAULT,
                                     &pError ) == E_RETRY;
          else
@@ -8974,19 +8987,20 @@ static void hb_cdxSortWritePage( LPCDXSORTINFO pSort )
 
    hb_cdxSortSortPage( pSort );
 
-   if( pSort->hTempFile == FS_ERROR )
+   if( pSort->pTempFile == NULL )
    {
       char szName[ HB_PATH_MAX ];
-      pSort->hTempFile = hb_fsCreateTemp( NULL, NULL, FC_NORMAL, szName );
-      if( pSort->hTempFile == FS_ERROR )
+      pSort->pTempFile = hb_fileCreateTemp( NULL, NULL, FC_NORMAL, szName );
+      if( pSort->pTempFile == NULL )
       {
          hb_errInternal( 9301, "hb_cdxSortWritePage: Can't create temporary file.", NULL, NULL );
       }
       pSort->szTempFileName = hb_strdup( szName );
    }
    pSort->pSwapPage[ pSort->ulCurPage ].ulKeys = pSort->ulKeys;
-   pSort->pSwapPage[ pSort->ulCurPage ].nOffset = hb_fsSeekLarge( pSort->hTempFile, 0, FS_END );
-   if( hb_fsWriteLarge( pSort->hTempFile, pSort->pKeyPool, nSize ) != nSize )
+   pSort->pSwapPage[ pSort->ulCurPage ].nOffset = hb_fileSize( pSort->pTempFile );
+   if( hb_fileWriteAt( pSort->pTempFile, pSort->pKeyPool,
+                       nSize, pSort->pSwapPage[ pSort->ulCurPage ].nOffset ) != nSize )
    {
       hb_errInternal( 9302, "hb_cdxSortWritePage: Write error in temporary file.", NULL, NULL );
    }
@@ -9004,8 +9018,8 @@ static void hb_cdxSortGetPageKey( LPCDXSORTINFO pSort, HB_ULONG ulPage,
       HB_ULONG ulKeys = HB_MIN( pSort->ulPgKeys, pSort->pSwapPage[ ulPage ].ulKeys );
       HB_SIZE nSize = ulKeys * ( iLen + 4 );
 
-      if( hb_fsSeekLarge( pSort->hTempFile, pSort->pSwapPage[ ulPage ].nOffset, FS_SET ) != pSort->pSwapPage[ ulPage ].nOffset ||
-          hb_fsReadLarge( pSort->hTempFile, pSort->pSwapPage[ ulPage ].pKeyPool, nSize ) != nSize )
+      if( hb_fileReadAt( pSort->pTempFile, pSort->pSwapPage[ ulPage ].pKeyPool,
+                         nSize, pSort->pSwapPage[ ulPage ].nOffset ) != nSize )
       {
          hb_errInternal( 9303, "hb_cdxSortGetPageKey: Read error from temporary file.", NULL, NULL );
       }
@@ -9264,7 +9278,7 @@ static LPCDXSORTINFO hb_cdxSortNew( LPCDXTAG pTag, HB_ULONG ulRecCount )
    }
 
    pSort->pTag = pTag;
-   pSort->hTempFile = FS_ERROR;
+   pSort->pTempFile = NULL;
    pSort->keyLen = iLen;
    pSort->bTrl = pTag->bTrail;
    pSort->fUnique = pTag->UniqueKey;
@@ -9281,13 +9295,13 @@ static LPCDXSORTINFO hb_cdxSortNew( LPCDXTAG pTag, HB_ULONG ulRecCount )
 
 static void hb_cdxSortFree( LPCDXSORTINFO pSort )
 {
-   if( pSort->hTempFile != FS_ERROR )
+   if( pSort->pTempFile != NULL )
    {
-      hb_fsClose( pSort->hTempFile );
+      hb_fileClose( pSort->pTempFile );
    }
    if( pSort->szTempFileName )
    {
-      hb_fsDelete( pSort->szTempFileName );
+      hb_fileDelete( pSort->szTempFileName );
       hb_xfree( pSort->szTempFileName );
    }
    if( pSort->pKeyPool )
@@ -9656,7 +9670,7 @@ static void hb_cdxTagDoIndex( LPCDXTAG pTag, HB_BOOL fReindex )
                   }
                   else
                   {
-                     printf( "hb_cdxTagDoIndex: hb_itemType( pItem ) = %i", hb_itemType( pItem ) );
+                     printf( "hb_cdxTagDoIndex: hb_itemType( pItem ) = %u", hb_itemType( pItem ) );
                   }
                   break;
             }

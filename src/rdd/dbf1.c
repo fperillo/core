@@ -1763,12 +1763,18 @@ static HB_ERRCODE hb_dbfAddField( DBFAREAP pArea, LPDBFIELDINFO pFieldInfo )
 {
    HB_TRACE( HB_TR_DEBUG, ( "hb_dbfAddField(%p, %p)", pArea, pFieldInfo ) );
 
-   if( pArea->bMemoType == DB_MEMO_SMT &&
-       ( pFieldInfo->uiType == HB_FT_MEMO ||
-         pFieldInfo->uiType == HB_FT_IMAGE ||
-         pFieldInfo->uiType == HB_FT_BLOB ||
-         pFieldInfo->uiType == HB_FT_OLE ) )
-      pFieldInfo->uiLen = 10;
+   switch( pFieldInfo->uiType )
+   {
+      case HB_FT_IMAGE:
+      case HB_FT_BLOB:
+      case HB_FT_OLE:
+         pFieldInfo->uiFlags |= HB_FF_BINARY;
+         /* no break */
+      case HB_FT_MEMO:
+         if( pArea->bMemoType == DB_MEMO_SMT )
+            pFieldInfo->uiLen = 10;
+         break;
+   }
 
    /* Update field offset */
    pArea->pFieldOffset[ pArea->area.uiFieldCount ] = pArea->uiRecordLen;
@@ -2624,31 +2630,18 @@ static HB_ERRCODE hb_dbfPutValue( DBFAREAP pArea, HB_USHORT uiIndex, PHB_ITEM pI
             double dVal;
             int iSize;
 
-            if( pField->uiDec )
+            if( pField->uiDec || HB_IS_DOUBLE( pItem ) )
             {
+#if 0    /* this version rounds double values to nearest integer */
                dVal = hb_numDecConv( hb_itemGetND( pItem ), -( int ) pField->uiDec );
-               lVal = ( HB_MAXINT ) dVal;
-               if( ! HB_DBL_LIM_INT64( dVal ) )
-                  iSize = 99;
-               else
-#ifndef HB_LONG_LONG_OFF
-                  iSize = HB_LIM_INT8( lVal ) ? 1 :
-                        ( HB_LIM_INT16( lVal ) ? 2 :
-                        ( HB_LIM_INT24( lVal ) ? 3 :
-                        ( HB_LIM_INT32( lVal ) ? 4 : 8 ) ) );
-#else
-                  iSize = HB_DBL_LIM_INT8( dVal ) ? 1 :
-                        ( HB_DBL_LIM_INT16( dVal ) ? 2 :
-                        ( HB_DBL_LIM_INT24( dVal ) ? 3 :
-                        ( HB_DBL_LIM_INT32( dVal ) ? 4 : 8 ) ) );
-#endif
-            }
-            else if( HB_IS_DOUBLE( pItem ) )
-            {
+#else    /* this one truncates double value to integer dropping fractional part */
                dVal = hb_itemGetND( pItem );
+               if( pField->uiDec )
+                  dVal = hb_numDecConv( dVal, -( int ) pField->uiDec );
+#endif
                lVal = ( HB_MAXINT ) dVal;
                if( ! HB_DBL_LIM_INT64( dVal ) )
-                  iSize = 99;
+                  iSize = pField->uiLen + 1;
                else
 #ifndef HB_LONG_LONG_OFF
                   iSize = HB_LIM_INT8( lVal ) ? 1 :
@@ -3093,8 +3086,8 @@ static HB_ERRCODE hb_dbfCreate( DBFAREAP pArea, LPDBOPENINFO pCreateInfo )
          else
             pArea->pDataFile = hb_fileExtOpen( szFileName, NULL,
                                                FO_READWRITE | FO_EXCLUSIVE | FXO_TRUNCATE |
-                                               FXO_DEFAULTS | FXO_SHARELOCK | FXO_COPYNAME,
-                                               NULL, pError );
+                                               FXO_DEFAULTS | FXO_SHARELOCK | FXO_COPYNAME |
+                                               FXO_NOSEEKPOS, NULL, pError );
          if( pArea->pDataFile )
             break;
       }
@@ -3172,7 +3165,7 @@ static HB_ERRCODE hb_dbfCreate( DBFAREAP pArea, LPDBOPENINFO pCreateInfo )
             if( pField->uiLen != 4 || pArea->bMemoType == DB_MEMO_SMT )
                pField->uiLen = 10;
             pThisField->bLen = ( HB_BYTE ) pField->uiLen;
-            pThisField->bFieldFlags = HB_FF_BINARY;
+            pThisField->bFieldFlags |= HB_FF_BINARY;
             pArea->uiRecordLen += pField->uiLen;
             pArea->fHasMemo = HB_TRUE;
             break;
@@ -3182,7 +3175,7 @@ static HB_ERRCODE hb_dbfCreate( DBFAREAP pArea, LPDBOPENINFO pCreateInfo )
             if( pField->uiLen != 4 || pArea->bMemoType == DB_MEMO_SMT )
                pField->uiLen = 10;
             pThisField->bLen = ( HB_BYTE ) pField->uiLen;
-            pThisField->bFieldFlags = HB_FF_BINARY;
+            pThisField->bFieldFlags |= HB_FF_BINARY;
             pArea->uiRecordLen += pField->uiLen;
             pArea->fHasMemo = HB_TRUE;
             break;
@@ -3192,7 +3185,7 @@ static HB_ERRCODE hb_dbfCreate( DBFAREAP pArea, LPDBOPENINFO pCreateInfo )
             if( pField->uiLen != 4 || pArea->bMemoType == DB_MEMO_SMT )
                pField->uiLen = 10;
             pThisField->bLen = ( HB_BYTE ) pField->uiLen;
-            pThisField->bFieldFlags = HB_FF_BINARY;
+            pThisField->bFieldFlags |= HB_FF_BINARY;
             pArea->uiRecordLen += pField->uiLen;
             pArea->fHasMemo = HB_TRUE;
             break;
@@ -3303,7 +3296,7 @@ static HB_ERRCODE hb_dbfCreate( DBFAREAP pArea, LPDBOPENINFO pCreateInfo )
             pThisField->bType = pArea->bTableType == DB_DBF_VFP ? 'T' : '@';
             pField->uiLen = 8;
             pThisField->bLen = ( HB_BYTE ) pField->uiLen;
-            pThisField->bFieldFlags = HB_FF_BINARY;
+            pThisField->bFieldFlags |= HB_FF_BINARY;
             pArea->uiRecordLen += pField->uiLen;
             break;
 
@@ -3349,6 +3342,13 @@ static HB_ERRCODE hb_dbfCreate( DBFAREAP pArea, LPDBOPENINFO pCreateInfo )
          pArea->lpdbOpenInfo = NULL;
          return HB_FAILURE;
       }
+
+      if( pArea->bTableType == DB_DBF_VFP &&
+          ( pThisField->bFieldFlags & HB_FF_NULLABLE ) != 0 )
+      {
+         hb_dbfAllocNullFlag( pArea, uiCount, HB_FALSE );
+      }
+
       pThisField++;
    }
 
@@ -4083,7 +4083,8 @@ static HB_ERRCODE hb_dbfOpen( DBFAREAP pArea, LPDBOPENINFO pOpenInfo )
       do
       {
          pArea->pDataFile = hb_fileExtOpen( szFileName, NULL, uiFlags |
-                                            FXO_DEFAULTS | FXO_SHARELOCK | FXO_COPYNAME,
+                                            FXO_DEFAULTS | FXO_SHARELOCK |
+                                            FXO_COPYNAME | FXO_NOSEEKPOS,
                                             NULL, pError );
          if( pArea->pDataFile )
             break;
@@ -5276,7 +5277,7 @@ static HB_ERRCODE hb_dbfGetValueFile( DBFAREAP pArea, HB_USHORT uiIndex, const c
       PHB_FILE pFile;
 
       pFile = hb_fileExtOpen( szFile, NULL, FO_WRITE | FO_EXCLUSIVE |
-                              FXO_DEFAULTS | FXO_SHARELOCK |
+                              FXO_DEFAULTS | FXO_SHARELOCK | FXO_NOSEEKPOS |
                               ( uiMode == FILEGET_APPEND ? FXO_APPEND : FXO_TRUNCATE ),
                               NULL, NULL );
       if( ! pFile )
@@ -5361,7 +5362,8 @@ static HB_ERRCODE hb_dbfPutValueFile( DBFAREAP pArea, HB_USHORT uiIndex, const c
       PHB_FILE pFile;
 
       pFile = hb_fileExtOpen( szFile, NULL, FO_READ | FO_DENYNONE |
-                              FXO_DEFAULTS | FXO_SHARELOCK, NULL, NULL );
+                              FXO_DEFAULTS | FXO_SHARELOCK | FXO_NOSEEKPOS,
+                              NULL, NULL );
       if( ! pFile )
       {
          errCode = EDBF_OPEN_DBF;

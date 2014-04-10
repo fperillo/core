@@ -1308,9 +1308,7 @@ HB_FUNC( ORDBAGCLEAR )
    {
       DBORDERINFO pOrderInfo;
       memset( &pOrderInfo, 0, sizeof( pOrderInfo ) );
-      pOrderInfo.atomBagName = hb_param( 1, HB_IT_STRING );
-      if( ! pOrderInfo.atomBagName )
-         pOrderInfo.atomBagName = hb_param( 1, HB_IT_NUMERIC );
+      pOrderInfo.atomBagName = hb_param( 1, HB_IT_STRING | HB_IT_NUMERIC );
       hb_retl( SELF_ORDLSTDELETE( pArea, &pOrderInfo ) == HB_SUCCESS );
    }
    else
@@ -1325,9 +1323,7 @@ HB_FUNC( ORDDESTROY )
    {
       DBORDERINFO pOrderInfo;
       memset( &pOrderInfo, 0, sizeof( pOrderInfo ) );
-      pOrderInfo.itmOrder = hb_param( 1, HB_IT_STRING );
-      if( ! pOrderInfo.itmOrder )
-         pOrderInfo.itmOrder = hb_param( 1, HB_IT_NUMERIC );
+      pOrderInfo.itmOrder = hb_param( 1, HB_IT_STRING | HB_IT_NUMERIC );
       pOrderInfo.atomBagName = hb_param( 2, HB_IT_STRING );
       hb_retl( SELF_ORDDESTROY( pArea, &pOrderInfo ) == HB_SUCCESS );
    }
@@ -1527,9 +1523,7 @@ HB_FUNC( ORDSETFOCUS )
    {
       DBORDERINFO pInfo;
       memset( &pInfo, 0, sizeof( pInfo ) );
-      pInfo.itmOrder = hb_param( 1, HB_IT_STRING );
-      if( ! pInfo.itmOrder )
-         pInfo.itmOrder = hb_param( 1, HB_IT_NUMERIC );
+      pInfo.itmOrder = hb_param( 1, HB_IT_STRING | HB_IT_NUMERIC );
       pInfo.atomBagName = hb_param( 2, HB_IT_STRING );
       pInfo.itmResult = hb_itemPutC( NULL, NULL );
       SELF_ORDLSTFOCUS( pArea, &pInfo );
@@ -1741,11 +1735,15 @@ HB_FUNC( DBRELATION )  /* (<nRelation>) --> cLinkExp */
 
 HB_FUNC( DBRSELECT )  /* (<nRelation>) --> nWorkArea */
 {
-   HB_USHORT uiWorkArea = 0;
+   HB_USHORT uiWorkArea = 0, uiRelation = ( HB_USHORT ) hb_parni( 1 );
    AREAP pArea = ( AREAP ) hb_rddGetCurrentWorkAreaPointer();
 
    if( pArea )
-      SELF_RELAREA( pArea, ( HB_USHORT ) hb_parni( 1 ), &uiWorkArea );
+      /* undocumented CA-Cl*pper behavior:
+       * When parameter is missing, wrong or 0 then 1 is used as
+       * relation number [druzus]
+       */
+      SELF_RELAREA( pArea, uiRelation ? uiRelation : 1, &uiWorkArea );
 
    hb_retni( uiWorkArea );
 }
@@ -1766,7 +1764,7 @@ HB_FUNC( DBSETRELATION )
    {
       DBRELINFO dbRelations;
       AREAP pChildArea;
-      HB_USHORT uiChildArea;
+      HB_AREANO uiChildArea;
       char * szAlias = NULL;
 
       if( hb_pcount() < 2 ||
@@ -1820,7 +1818,8 @@ HB_FUNC( __DBARRANGE )
 
    if( pArea )
    {
-      HB_USHORT uiNewArea, uiCount, uiDest;
+      HB_USHORT uiCount, uiDest;
+      HB_AREANO uiNewArea;
       HB_SIZE nSize;
       char * szFieldLine, * szPos;
       PHB_ITEM pStruct, pFields;
@@ -1948,7 +1947,7 @@ HB_FUNC( __DBTRANS )
 {
    if( HB_ISNUM( 1 ) )
    {
-      HB_USHORT uiSrcArea, uiDstArea;
+      HB_AREANO uiSrcArea, uiDstArea;
       AREAP pSrcArea, pDstArea;
 
       uiSrcArea = ( HB_AREANO ) hb_rddGetCurrentWorkAreaNumber();

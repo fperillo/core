@@ -90,7 +90,7 @@ extern HB_EXPORT PHB_SYMB hb_vmProcessDynLibSymbols( PHB_SYMB pSymbols, HB_USHOR
       HB_ULONG  ulID;               /* module unique identifier */
    } HB_SYMBOLS, * PHB_SYMBOLS;     /* structure to keep track of all modules symbol tables */
 
-   extern PHB_SYMBOLS   hb_vmRegisterSymbols( PHB_SYMB pModuleSymbols, HB_USHORT uiSymbols, const char * szModuleName, HB_ULONG ulID, HB_BOOL fDynLib, HB_BOOL fClone );
+   extern PHB_SYMBOLS   hb_vmRegisterSymbols( PHB_SYMB pModuleSymbols, HB_USHORT uiSymbols, const char * szModuleName, HB_ULONG ulID, HB_BOOL fDynLib, HB_BOOL fClone, HB_BOOL fOverLoad );
    extern HB_BOOL       hb_vmLockModuleSymbols( void );
    extern void          hb_vmUnlockModuleSymbols( void );
    extern void          hb_vmFreeSymbols( PHB_SYMBOLS pSymbols );
@@ -175,6 +175,7 @@ extern HB_EXPORT void     hb_vmPushItemRef( PHB_ITEM pItem ); /* push item refer
 
 extern HB_EXPORT HB_BOOL  hb_vmIsMt( void ); /* return HB_TRUE if HVM is compiled with thread support */
 extern HB_EXPORT void     hb_vmLock( void ); /* lock VM blocking GC execution by other threads */
+extern HB_EXPORT void     hb_vmLockForce( void ); /* lock VM blocking GC execution by other threads, ignore GC request */
 extern HB_EXPORT void     hb_vmUnlock( void ); /* unlock VM, allow GC execution */
 #ifdef _HB_API_INTERNAL_
 extern HB_EXPORT HB_BOOL  hb_vmSuspendThreads( HB_BOOL fWait ); /* (try to) stop all threads except current one */

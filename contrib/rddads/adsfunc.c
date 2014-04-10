@@ -2,7 +2,7 @@
  * Harbour Project source code:
  * Advantage Database Server RDD (additional functions)
  *
- * Copyright 2008 Viktor Szakats (harbour syenar.net) (cleanups)
+ * Copyright 2008 Viktor Szakats (vszakats.net/harbour) (cleanups)
  * Copyright 2000 Alexander Kresin <alex@belacy.belgorod.su>
  * www - http://harbour-project.org
  *
@@ -1720,6 +1720,33 @@ HB_FUNC( ADSISEMPTY )
       hb_errRT_DBCMD( EG_ARG, 1014, NULL, HB_ERR_FUNCNAME );
 }
 
+HB_FUNC( ADSISNULL )
+{
+   if( HB_ISCHAR( 1 ) || HB_ISNUM( 1 ) )
+   {
+      UNSIGNED16 u16Null = 0;
+      ADSAREAP pArea = hb_adsGetWorkAreaPointer();
+
+      if( pArea )
+      {
+#if ADS_LIB_VERSION >= 900
+         AdsIsNull( pArea->hTable,
+                    ( HB_ISCHAR( 1 ) ? ( UNSIGNED8 * ) hb_parcx( 1 ) : ADSFIELD( hb_parni( 1 ) ) ) /* pucFldName */,
+                    &u16Null );
+#else
+         AdsIsEmpty( pArea->hTable,
+                     ( HB_ISCHAR( 1 ) ? ( UNSIGNED8 * ) hb_parcx( 1 ) : ADSFIELD( hb_parni( 1 ) ) ) /* pucFldName */,
+                     &u16Null );
+#endif
+         hb_retl( u16Null != 0 );
+      }
+      else
+         hb_errRT_DBCMD( EG_NOTABLE, 2001, NULL, HB_ERR_FUNCNAME );
+   }
+   else
+      hb_errRT_DBCMD( EG_ARG, 1014, NULL, HB_ERR_FUNCNAME );
+}
+
 HB_FUNC( ADSGETNUMACTIVELINKS )         /* Only valid for a DataDict */
 {
    UNSIGNED16 pusNumLinks = 0;
@@ -2170,6 +2197,7 @@ HB_FUNC( ADSRESTRUCTURETABLE )
 #endif
 }
 
+/* AdsCopyTableContent( szAliasDest [, nAdsFilterOption ] ) -> lSuccess */
 HB_FUNC( ADSCOPYTABLECONTENTS )
 {
 #if ADS_LIB_VERSION >= 600
@@ -2188,7 +2216,7 @@ HB_FUNC( ADSCOPYTABLECONTENTS )
          if( pDest )
             hb_retl( AdsCopyTableContents( pArea->hTable,
                                            pDest->hTable,
-                                           ADS_IGNOREFILTERS ) == AE_SUCCESS );
+                                           ( UNSIGNED16 ) hb_parnidef( 2, ADS_IGNOREFILTERS ) ) == AE_SUCCESS );
          else
             hb_errRT_DBCMD( EG_NOTABLE, 2001, NULL, HB_ERR_FUNCNAME );
       }
@@ -2416,5 +2444,23 @@ HB_FUNC( ADSDDDROPLINK )
                            ( UNSIGNED16 ) hb_parl( 3 )   /* usDropGlobal */ ) == AE_SUCCESS ); /* NOTE: Defaults to 0/HB_FALSE for non logical parameters. */
 #else
    hb_retl( HB_FALSE );
+#endif
+}
+
+HB_FUNC( ADSSETINDEXDIRECTION )
+{
+#if ADS_LIB_VERSION >= 900
+   ADSAREAP pArea = hb_adsGetWorkAreaPointer();
+   ADSHANDLE hIndex;
+   UNSIGNED32 nRet = 0;
+
+   if( pArea && HB_ISNUM( 1 ) )
+   {
+      hIndex = pArea->hOrdCurrent;
+      nRet = AdsSetIndexDirection( hIndex, ( UNSIGNED16 ) hb_parni( 1 ) );
+   }
+   hb_retnl( nRet );
+#else
+   hb_retnl( 0 );
 #endif
 }

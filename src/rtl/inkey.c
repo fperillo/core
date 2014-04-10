@@ -50,7 +50,7 @@
  * The following parts are Copyright of the individual authors.
  * www - http://harbour-project.org
  *
- * Copyright 1999-2012 Viktor Szakats (harbour syenar.net)
+ * Copyright 1999-2012 Viktor Szakats (vszakats.net/harbour)
  *    hb_keyPut()
  *
  * Copyright 2003-2012 Przemyslaw Czerpak <druzus@acn.waw.pl>
@@ -261,4 +261,9 @@ HB_FUNC( HB_KEYSTD )
 HB_FUNC( HB_KEYMOD )
 {
    hb_retni( hb_inkeyKeyMod( hb_parni( 1 ) ) );
+}
+
+HB_FUNC( HB_KEYVAL )
+{
+   hb_retni( hb_inkeyKeyVal( hb_parni( 1 ) ) );
 }

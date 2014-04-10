@@ -56,12 +56,10 @@
 #include "hbthread.h"
 #include "hbvm.h"
 
-#if ! defined( HB_OS_WIN_CE )
+#if defined( HB_OS_UNIX )
 #  include <sys/types.h>
 #  include <sys/stat.h>
-#  if defined( HB_OS_UNIX )
-#     include <unistd.h>
-#  endif
+#  include <unistd.h>
 #endif
 
 
@@ -93,6 +91,9 @@ typedef struct _HB_FILE
 HB_FILE;
 
 static const HB_FILE_FUNCS * s_fileMethods( void );
+#if defined( HB_OS_UNIX )
+   static PHB_FILE hb_fileposNew( PHB_FILE pFile );
+#endif
 
 static HB_CRITICAL_NEW( s_fileMtx );
 
@@ -327,34 +328,149 @@ static HB_BOOL hb_fileTestLock( PHB_FILE pFile,
  * file methods
  */
 
-static HB_BOOL s_fileAccept( const char * pFilename )
+static HB_BOOL s_fileAccept( PHB_FILE_FUNCS pFuncs, const char * pszFileName )
 {
-   return pFilename && *pFilename;
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return pszFileName && *pszFileName;
 }
 
-static PHB_FILE s_fileExtOpen( const char * pFilename, const char * pDefExt,
+static HB_BOOL s_fileExists( PHB_FILE_FUNCS pFuncs, const char * pszFileName, char * pRetPath )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_spFileExists( pszFileName, pRetPath );
+}
+
+static HB_BOOL s_fileDelete( PHB_FILE_FUNCS pFuncs, const char * pszFileName )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_fsDelete( pszFileName );
+}
+
+static HB_BOOL s_fileRename( PHB_FILE_FUNCS pFuncs, const char * pszName, const char * pszNewName )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_fsRename( pszName, pszNewName );
+}
+
+static HB_BOOL s_fileCopy( PHB_FILE_FUNCS pFuncs, const char * pSrcFile, const char * pszDstFile )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_fsCopy( pSrcFile, pszDstFile );
+}
+
+static HB_BOOL s_fileDirExists( PHB_FILE_FUNCS pFuncs, const char * pszDirName )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_fsDirExists( pszDirName );
+}
+
+static HB_BOOL s_fileDirMake( PHB_FILE_FUNCS pFuncs, const char * pszDirName )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_fsMkDir( pszDirName );
+}
+
+static HB_BOOL s_fileDirRemove( PHB_FILE_FUNCS pFuncs, const char * pszDirName )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_fsRmDir( pszDirName );
+}
+
+static double s_fileDirSpace( PHB_FILE_FUNCS pFuncs, const char * pszDirName, HB_USHORT uiType )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_fsDiskSpace( pszDirName, uiType );
+}
+
+static PHB_ITEM s_fileDirectory( PHB_FILE_FUNCS pFuncs, const char * pszDirSpec, const char * pszAttr )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_fsDirectory( pszDirSpec, pszAttr );
+}
+
+static HB_BOOL s_fileTimeGet( PHB_FILE_FUNCS pFuncs, const char * pszFileName, long * plJulian, long * plMillisec )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_fsGetFileTime( pszFileName, plJulian, plMillisec );
+}
+
+static HB_BOOL s_fileTimeSet( PHB_FILE_FUNCS pFuncs, const char * pszFileName, long lJulian, long lMillisec )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_fsSetFileTime( pszFileName, lJulian, lMillisec );
+}
+
+static HB_BOOL s_fileAttrGet( PHB_FILE_FUNCS pFuncs, const char * pszFileName, HB_FATTR * pnAttr )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_fsGetAttr( pszFileName, pnAttr );
+}
+
+static HB_BOOL s_fileAttrSet( PHB_FILE_FUNCS pFuncs, const char * pszFileName, HB_FATTR nAttr )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_fsSetAttr( pszFileName, nAttr );
+}
+
+static HB_BOOL s_fileLink( PHB_FILE_FUNCS pFuncs, const char * pszExisting, const char * pszNewName )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_fsLink( pszExisting, pszNewName );
+}
+
+static HB_BOOL s_fileLinkSym( PHB_FILE_FUNCS pFuncs, const char * pszTarget, const char * pszNewName )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_fsLinkSym( pszTarget, pszNewName );
+}
+
+static char * s_fileLinkRead( PHB_FILE_FUNCS pFuncs, const char * pszFileName )
+{
+   HB_SYMBOL_UNUSED( pFuncs );
+
+   return hb_fsLinkRead( pszFileName );
+}
+
+static PHB_FILE s_fileExtOpen( PHB_FILE_FUNCS pFuncs, const char * pszFileName, const char * pDefExt,
                                HB_USHORT uiExFlags, const char * pPaths,
                                PHB_ITEM pError )
 {
    PHB_FILE pFile = NULL;
 
 #if defined( HB_OS_UNIX )
+   HB_BOOL fResult, fSeek = HB_FALSE;
    struct stat statbuf;
-   HB_BOOL fResult;
 #endif
    HB_BOOL fShared, fReadonly;
    HB_FHANDLE hFile;
    char * pszFile;
 
+   HB_SYMBOL_UNUSED( pFuncs );
+
    fShared = ( uiExFlags & ( FO_DENYREAD | FO_DENYWRITE | FO_EXCLUSIVE ) ) == 0;
    fReadonly = ( uiExFlags & ( FO_READ | FO_WRITE | FO_READWRITE ) ) == FO_READ;
-   pszFile = hb_fsExtName( pFilename, pDefExt, uiExFlags, pPaths );
+   pszFile = hb_fsExtName( pszFileName, pDefExt, uiExFlags, pPaths );
 
-#if defined( HB_OS_UNIX )
    hb_vmUnlock();
+#if defined( HB_OS_UNIX )
    fResult = stat( ( char * ) pszFile, &statbuf ) == 0;
    hb_fsSetIOError( fResult, 0 );
-   hb_vmLock();
 
    if( fResult )
    {
@@ -368,6 +484,15 @@ static PHB_FILE s_fileExtOpen( const char * pFilename, const char * pDefExt,
             pFile = NULL;
          else
             pFile->used++;
+
+         if( ( uiExFlags & FXO_NOSEEKPOS ) == 0 )
+         {
+#  if defined( HB_OS_VXWORKS )
+            fSeek  = ! S_ISFIFO( statbuf.st_mode );
+#  else
+            fSeek  = ! S_ISFIFO( statbuf.st_mode ) && ! S_ISSOCK( statbuf.st_mode );
+#  endif
+         }
       }
       hb_threadLeaveCriticalSection( &s_fileMtx );
    }
@@ -380,7 +505,7 @@ static PHB_FILE s_fileExtOpen( const char * pFilename, const char * pDefExt,
          pFile = NULL;
       }
       else if( uiExFlags & FXO_COPYNAME )
-         hb_strncpy( ( char * ) pFilename, pszFile, HB_PATH_MAX - 1 );
+         hb_strncpy( ( char * ) pszFileName, pszFile, HB_PATH_MAX - 1 );
 
       if( pError )
       {
@@ -395,18 +520,24 @@ static PHB_FILE s_fileExtOpen( const char * pFilename, const char * pDefExt,
    else
 #endif
    {
-      hFile = hb_fsExtOpen( pFilename, pDefExt, uiExFlags, pPaths, pError );
+      hFile = hb_fsExtOpen( pszFileName, pDefExt, uiExFlags, pPaths, pError );
       if( hFile != FS_ERROR )
       {
          HB_ULONG device = 0, inode = 0;
 #if defined( HB_OS_UNIX )
-         hb_vmUnlock();
          if( fstat( hFile, &statbuf ) == 0 )
          {
             device = ( HB_ULONG ) statbuf.st_dev;
             inode  = ( HB_ULONG ) statbuf.st_ino;
+            if( ( uiExFlags & FXO_NOSEEKPOS ) == 0 )
+            {
+#  if defined( HB_OS_VXWORKS )
+               fSeek  = ! S_ISFIFO( statbuf.st_mode );
+#  else
+               fSeek  = ! S_ISFIFO( statbuf.st_mode ) && ! S_ISSOCK( statbuf.st_mode );
+#  endif
+            }
          }
-         hb_vmLock();
 #endif
 
          hb_threadEnterCriticalSection( &s_fileMtx );
@@ -457,6 +588,13 @@ static PHB_FILE s_fileExtOpen( const char * pFilename, const char * pDefExt,
    }
    hb_xfree( pszFile );
 
+#if defined( HB_OS_UNIX )
+   if( pFile && fSeek )
+      pFile = hb_fileposNew( pFile );
+
+#endif
+   hb_vmLock();
+
    return pFile;
 }
 
@@ -464,6 +602,7 @@ static void s_fileClose( PHB_FILE pFile )
 {
    HB_FHANDLE hFile = FS_ERROR, hFileRO = FS_ERROR;
 
+   hb_vmUnlock();
    hb_threadEnterCriticalSection( &s_fileMtx );
 
    if( --pFile->used == 0 )
@@ -490,6 +629,7 @@ static void s_fileClose( PHB_FILE pFile )
    }
 
    hb_threadLeaveCriticalSection( &s_fileMtx );
+   hb_vmLock();
 
    hb_fsSetError( 0 );
 
@@ -504,6 +644,7 @@ static HB_BOOL s_fileLock( PHB_FILE pFile, HB_FOFFSET nStart, HB_FOFFSET nLen,
 {
    HB_BOOL fResult, fLockFS = HB_FALSE;
 
+   hb_vmUnlock();
    if( ( iType & FL_MASK ) == FL_UNLOCK )
    {
       hb_threadEnterCriticalSection( &s_fileMtx );
@@ -541,6 +682,7 @@ static HB_BOOL s_fileLock( PHB_FILE pFile, HB_FOFFSET nStart, HB_FOFFSET nLen,
       else
          hb_fsSetError( fResult ? 0 : 33 );
    }
+   hb_vmLock();
 
    return fResult;
 }
@@ -550,6 +692,8 @@ static int s_fileLockTest( PHB_FILE pFile, HB_FOFFSET nStart, HB_FOFFSET nLen,
 {
    HB_BOOL fLocked;
    int iResult;
+
+   hb_vmUnlock();
 
    hb_threadEnterCriticalSection( &s_fileMtx );
    fLocked = hb_fileTestLock( pFile, nStart, nLen );
@@ -565,7 +709,23 @@ static int s_fileLockTest( PHB_FILE pFile, HB_FOFFSET nStart, HB_FOFFSET nLen,
    else
       iResult = hb_fsLockTest( pFile->hFile, nStart, nLen, ( HB_USHORT ) iType );
 
+   hb_vmLock();
+
    return iResult;
+}
+
+static HB_SIZE s_fileRead( PHB_FILE pFile, void * buffer, HB_SIZE nSize,
+                           HB_MAXINT nTimeout )
+{
+   HB_SYMBOL_UNUSED( nTimeout );
+   return hb_fsReadLarge( pFile->hFile, buffer, nSize );
+}
+
+static HB_SIZE s_fileWrite( PHB_FILE pFile, const void * buffer, HB_SIZE nSize,
+                            HB_MAXINT nTimeout )
+{
+   HB_SYMBOL_UNUSED( nTimeout );
+   return hb_fsWriteLarge( pFile->hFile, buffer, nSize );
 }
 
 static HB_SIZE s_fileReadAt( PHB_FILE pFile, void * buffer, HB_SIZE nSize,
@@ -585,9 +745,20 @@ static HB_BOOL s_fileTruncAt( PHB_FILE pFile, HB_FOFFSET nOffset )
    return hb_fsTruncAt( pFile->hFile, nOffset );
 }
 
+static HB_FOFFSET s_fileSeek( PHB_FILE pFile, HB_FOFFSET nOffset,
+                              HB_USHORT uiFlags )
+{
+   return hb_fsSeekLarge( pFile->hFile, nOffset, uiFlags );
+}
+
 static HB_FOFFSET s_fileSize( PHB_FILE pFile )
 {
    return hb_fsSeekLarge( pFile->hFile, 0, FS_END );
+}
+
+static HB_BOOL s_fileEof( PHB_FILE pFile )
+{
+   return hb_fsEof( pFile->hFile );
 }
 
 static void s_fileFlush( PHB_FILE pFile, HB_BOOL fDirty )
@@ -601,6 +772,15 @@ static void s_fileCommit( PHB_FILE pFile )
    hb_fsCommit( pFile->hFile );
 }
 
+static HB_BOOL s_fileConfigure( PHB_FILE pFile, int iIndex, PHB_ITEM pValue )
+{
+   HB_SYMBOL_UNUSED( pFile );
+   HB_SYMBOL_UNUSED( iIndex );
+   HB_SYMBOL_UNUSED( pValue );
+
+   return HB_FALSE;
+}
+
 static HB_FHANDLE s_fileHandle( PHB_FILE pFile )
 {
    return pFile ? pFile->hFile : FS_ERROR;
@@ -612,19 +792,42 @@ static const HB_FILE_FUNCS * s_fileMethods( void )
    static const HB_FILE_FUNCS s_fileFuncs =
    {
       s_fileAccept,
-      hb_spFileExists,
-      hb_fsDelete,
-      hb_fsRename,
+
+      s_fileExists,
+      s_fileDelete,
+      s_fileRename,
+      s_fileCopy,
+
+      s_fileDirExists,
+      s_fileDirMake,
+      s_fileDirRemove,
+      s_fileDirSpace,
+      s_fileDirectory,
+
+      s_fileTimeGet,
+      s_fileTimeSet,
+      s_fileAttrGet,
+      s_fileAttrSet,
+
+      s_fileLink,
+      s_fileLinkSym,
+      s_fileLinkRead,
+
       s_fileExtOpen,
       s_fileClose,
       s_fileLock,
       s_fileLockTest,
+      s_fileRead,
+      s_fileWrite,
       s_fileReadAt,
       s_fileWriteAt,
       s_fileTruncAt,
+      s_fileSeek,
       s_fileSize,
+      s_fileEof,
       s_fileFlush,
       s_fileCommit,
+      s_fileConfigure,
       s_fileHandle
    };
 
@@ -632,21 +835,216 @@ static const HB_FILE_FUNCS * s_fileMethods( void )
 }
 
 
+#if defined( HB_OS_UNIX )
 
-#define HB_FILE_TYPE_MAX  32
+typedef struct
+{
+   const HB_FILE_FUNCS * pFuncs;
+   PHB_FILE       pFile;
+   HB_FOFFSET     seek_pos;
+}
+HB_FILEPOS, * PHB_FILEPOS;
+
+#define _PHB_FILEPOS  ( ( PHB_FILEPOS ) pFilePos )
+#define _PHB_FILE     _PHB_FILEPOS->pFile
+
+static void s_fileposClose( PHB_FILE pFilePos )
+{
+   _PHB_FILE->pFuncs->Close( _PHB_FILE );
+   hb_xfree( pFilePos );
+}
+
+static HB_BOOL s_fileposLock( PHB_FILE pFilePos, HB_FOFFSET nStart, HB_FOFFSET nLen,
+                              int iType )
+{
+   return _PHB_FILE->pFuncs->Lock( _PHB_FILE, nStart, nLen, iType );
+}
+
+static int s_fileposLockTest( PHB_FILE pFilePos, HB_FOFFSET nStart, HB_FOFFSET nLen,
+                              int iType )
+{
+   return _PHB_FILE->pFuncs->LockTest( _PHB_FILE, nStart, nLen, iType );
+}
+
+static HB_SIZE s_fileposRead( PHB_FILE pFilePos, void * buffer, HB_SIZE nSize,
+                              HB_MAXINT nTimeout )
+{
+   HB_SIZE nDone;
+
+   HB_SYMBOL_UNUSED( nTimeout );
+   nDone = _PHB_FILE->pFuncs->ReadAt( _PHB_FILE, buffer, nSize, _PHB_FILEPOS->seek_pos );
+   _PHB_FILEPOS->seek_pos += nDone;
+
+   return nDone;
+}
+
+static HB_SIZE s_fileposWrite( PHB_FILE pFilePos, const void * buffer, HB_SIZE nSize,
+                               HB_MAXINT nTimeout )
+{
+   HB_SIZE nDone;
+
+   HB_SYMBOL_UNUSED( nTimeout );
+   nDone = _PHB_FILE->pFuncs->WriteAt( _PHB_FILE, buffer, nSize, _PHB_FILEPOS->seek_pos );
+   _PHB_FILEPOS->seek_pos += nDone;
+
+   return nDone;
+}
+
+static HB_SIZE s_fileposReadAt( PHB_FILE pFilePos, void * buffer, HB_SIZE nSize,
+                                HB_FOFFSET nOffset )
+{
+   return _PHB_FILE->pFuncs->ReadAt( _PHB_FILE, buffer, nSize, nOffset );
+}
+
+static HB_SIZE s_fileposWriteAt( PHB_FILE pFilePos, const void * buffer, HB_SIZE nSize,
+                                 HB_FOFFSET nOffset )
+{
+   return _PHB_FILE->pFuncs->WriteAt( _PHB_FILE, buffer, nSize, nOffset );
+}
+
+static HB_BOOL s_fileposTruncAt( PHB_FILE pFilePos, HB_FOFFSET nOffset )
+{
+   if( _PHB_FILE->pFuncs->TruncAt( _PHB_FILE, nOffset ) )
+   {
+      _PHB_FILEPOS->seek_pos = nOffset;
+      return HB_TRUE;
+   }
+   return HB_FALSE;
+}
+
+static HB_FOFFSET s_fileposSeek( PHB_FILE pFilePos, HB_FOFFSET nOffset,
+                                 HB_USHORT uiFlags )
+{
+   if( uiFlags & FS_END )
+      nOffset += pFilePos->pFuncs->Size( pFilePos );
+   else if( uiFlags & FS_RELATIVE )
+      nOffset += _PHB_FILEPOS->seek_pos;
+   /* else FS_SET */
+
+   if( nOffset >= 0 )
+   {
+      _PHB_FILEPOS->seek_pos = nOffset;
+      hb_fsSetError( 0 );
+   }
+   else
+      hb_fsSetError( 25 ); /* 'Seek Error' */
+
+   return _PHB_FILEPOS->seek_pos;
+}
+
+static HB_FOFFSET s_fileposSize( PHB_FILE pFilePos )
+{
+   return _PHB_FILE->pFuncs->Size( _PHB_FILE );
+}
+
+static HB_BOOL s_fileposEof( PHB_FILE pFilePos )
+{
+   return _PHB_FILEPOS->seek_pos >= pFilePos->pFuncs->Size( pFilePos );
+}
+
+static void s_fileposFlush( PHB_FILE pFilePos, HB_BOOL fDirty )
+{
+   _PHB_FILE->pFuncs->Flush( _PHB_FILE, fDirty );
+}
+
+static void s_fileposCommit( PHB_FILE pFilePos )
+{
+   _PHB_FILE->pFuncs->Commit( _PHB_FILE );
+}
+
+static HB_FHANDLE s_fileposHandle( PHB_FILE pFilePos )
+{
+   return pFilePos ? _PHB_FILE->pFuncs->Handle( _PHB_FILE ) : FS_ERROR;
+}
+
+static const HB_FILE_FUNCS * s_fileposMethods( void )
+{
+   /* methods table */
+   static const HB_FILE_FUNCS s_fileFuncs =
+   {
+      s_fileAccept,
+
+      s_fileExists,
+      s_fileDelete,
+      s_fileRename,
+      s_fileCopy,
+
+      s_fileDirExists,
+      s_fileDirMake,
+      s_fileDirRemove,
+      s_fileDirSpace,
+      s_fileDirectory,
+
+      s_fileTimeGet,
+      s_fileTimeSet,
+      s_fileAttrGet,
+      s_fileAttrSet,
+
+      s_fileLink,
+      s_fileLinkSym,
+      s_fileLinkRead,
+
+      s_fileExtOpen,
+      s_fileposClose,
+      s_fileposLock,
+      s_fileposLockTest,
+      s_fileposRead,
+      s_fileposWrite,
+      s_fileposReadAt,
+      s_fileposWriteAt,
+      s_fileposTruncAt,
+      s_fileposSeek,
+      s_fileposSize,
+      s_fileposEof,
+      s_fileposFlush,
+      s_fileposCommit,
+      s_fileConfigure,
+      s_fileposHandle
+   };
+
+   return &s_fileFuncs;
+}
+
+static PHB_FILE hb_fileposNew( PHB_FILE pFile )
+{
+   PHB_FILEPOS pFilePos = ( PHB_FILEPOS ) hb_xgrab( sizeof( HB_FILEPOS ) );
+
+   memset( pFilePos, 0, sizeof( HB_FILEPOS ) );
+   pFilePos->pFuncs   = s_fileposMethods();
+   pFilePos->pFile    = pFile;
+   pFilePos->seek_pos = 0;
+
+   return ( PHB_FILE ) pFilePos;
+}
+
+#endif /* HB_OS_UNIX */
 
 static const HB_FILE_FUNCS * s_pFileTypes[ HB_FILE_TYPE_MAX ];
 static int s_iFileTypes = 0;
+
+static int s_fileFindDrv( const char * pszFileName )
+{
+   int i = s_iFileTypes;
+
+   while( --i >= 0 )
+   {
+      if( s_pFileTypes[ i ]->Accept( s_pFileTypes[ i ], pszFileName ) )
+         break;
+   }
+
+   return i;
+}
 
 
 /*
  * public API functions
  */
 
-HB_BOOL hb_fileRegister( const HB_FILE_FUNCS * pFuncs )
+HB_BOOL hb_fileRegisterFull( const HB_FILE_FUNCS * pFuncs )
 {
    HB_BOOL fResult = HB_FALSE;
 
+   hb_vmUnlock();
    hb_threadEnterCriticalSection( &s_fileMtx );
 
    if( s_iFileTypes < HB_FILE_TYPE_MAX )
@@ -657,58 +1055,181 @@ HB_BOOL hb_fileRegister( const HB_FILE_FUNCS * pFuncs )
    }
 
    hb_threadLeaveCriticalSection( &s_fileMtx );
+   hb_vmLock();
 
    return fResult;
 }
 
-HB_BOOL hb_fileDelete( const char * pFilename )
+HB_BOOL hb_fileExists( const char * pszFileName, char * pRetPath )
 {
-   int i = s_iFileTypes;
+   int i = s_fileFindDrv( pszFileName );
 
-   while( --i >= 0 )
-   {
-      if( s_pFileTypes[ i ]->Accept( pFilename ) )
-         return s_pFileTypes[ i ]->Delete( pFilename );
-   }
-   return hb_fsDelete( pFilename );
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->Exists( s_pFileTypes[ i ], pszFileName, pRetPath );
+
+   return hb_spFileExists( pszFileName, pRetPath );
 }
 
-HB_BOOL hb_fileExists( const char * pFilename, char * pRetPath )
+HB_BOOL hb_fileDelete( const char * pszFileName )
 {
-   int i = s_iFileTypes;
+   int i = s_fileFindDrv( pszFileName );
 
-   while( --i >= 0 )
-   {
-      if( s_pFileTypes[ i ]->Accept( pFilename ) )
-         return s_pFileTypes[ i ]->Exists( pFilename, pRetPath );
-   }
-   return hb_spFileExists( pFilename, pRetPath );
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->Delete( s_pFileTypes[ i ], pszFileName );
+
+   return hb_fsDelete( pszFileName );
 }
 
-HB_BOOL hb_fileRename( const char * pFilename, const char * pszNewName )
+HB_BOOL hb_fileRename( const char * pszFileName, const char * pszNewName )
 {
-   int i = s_iFileTypes;
+   int i = s_fileFindDrv( pszFileName );
 
-   while( --i >= 0 )
-   {
-      if( s_pFileTypes[ i ]->Accept( pFilename ) )
-         return s_pFileTypes[ i ]->Rename( pFilename, pszNewName );
-   }
-   return hb_fsRename( pFilename, pszNewName );
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->Rename( s_pFileTypes[ i ], pszFileName, pszNewName );
+
+   return hb_fsRename( pszFileName, pszNewName );
 }
 
-PHB_FILE hb_fileExtOpen( const char * pFilename, const char * pDefExt,
+HB_BOOL hb_fileCopy( const char * pSrcFile, const char * pszDstFile )
+{
+   int i = s_fileFindDrv( pSrcFile );
+
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->Copy( s_pFileTypes[ i ], pSrcFile, pszDstFile );
+
+   return hb_fsCopy( pSrcFile, pszDstFile );
+}
+
+HB_BOOL hb_fileDirExists( const char * pszDirName )
+{
+   int i = s_fileFindDrv( pszDirName );
+
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->DirExists( s_pFileTypes[ i ], pszDirName );
+
+   return hb_fsDirExists( pszDirName );
+}
+
+HB_BOOL hb_fileDirMake( const char * pszDirName )
+{
+   int i = s_fileFindDrv( pszDirName );
+
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->DirMake( s_pFileTypes[ i ], pszDirName );
+
+   return hb_fsMkDir( pszDirName );
+}
+
+HB_BOOL hb_fileDirRemove( const char * pszDirName )
+{
+   int i = s_fileFindDrv( pszDirName );
+
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->DirRemove( s_pFileTypes[ i ], pszDirName );
+
+   return hb_fsRmDir( pszDirName );
+}
+
+double hb_fileDirSpace( const char * pszDirName, HB_USHORT uiType )
+{
+   int i = s_fileFindDrv( pszDirName );
+
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->DirSpace( s_pFileTypes[ i ], pszDirName, uiType );
+
+   return hb_fsDiskSpace( pszDirName, uiType );
+}
+
+PHB_ITEM hb_fileDirectory( const char * pszDirSpec, const char * pszAttr )
+{
+   int i = s_fileFindDrv( pszDirSpec );
+
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->Directory( s_pFileTypes[ i ], pszDirSpec, pszAttr );
+
+   return hb_fsDirectory( pszDirSpec, pszAttr );
+}
+
+HB_BOOL hb_fileTimeGet( const char * pszFileName, long * plJulian, long * plMillisec )
+{
+   int i = s_fileFindDrv( pszFileName );
+
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->TimeGet( s_pFileTypes[ i ], pszFileName, plJulian, plMillisec );
+
+   return hb_fsGetFileTime( pszFileName, plJulian, plMillisec );
+}
+
+HB_BOOL hb_fileTimeSet( const char * pszFileName, long lJulian, long lMillisec )
+{
+   int i = s_fileFindDrv( pszFileName );
+
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->TimeSet( s_pFileTypes[ i ], pszFileName, lJulian, lMillisec );
+
+   return hb_fsSetFileTime( pszFileName, lJulian, lMillisec );
+}
+
+HB_BOOL hb_fileAttrGet( const char * pszFileName, HB_FATTR * pulAttr )
+{
+   int i = s_fileFindDrv( pszFileName );
+
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->AttrGet( s_pFileTypes[ i ], pszFileName, pulAttr );
+
+   return hb_fsGetAttr( pszFileName, pulAttr );
+}
+
+HB_BOOL hb_fileAttrSet( const char * pszFileName, HB_FATTR ulAttr )
+{
+   int i = s_fileFindDrv( pszFileName );
+
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->AttrSet( s_pFileTypes[ i ], pszFileName, ulAttr );
+
+   return hb_fsSetAttr( pszFileName, ulAttr );
+}
+
+HB_BOOL hb_fileLink( const char * pszExisting, const char * pszNewName )
+{
+   int i = s_fileFindDrv( pszExisting );
+
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->Link( s_pFileTypes[ i ], pszExisting, pszNewName );
+
+   return hb_fsLink( pszExisting, pszNewName );
+}
+
+HB_BOOL hb_fileLinkSym( const char * pszTarget, const char * pszNewName )
+{
+   int i = s_fileFindDrv( pszTarget );
+
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->LinkSym( s_pFileTypes[ i ], pszTarget, pszNewName );
+
+   return hb_fsLinkSym( pszTarget, pszNewName );
+}
+
+char * hb_fileLinkRead( const char * pszFileName )
+{
+   int i = s_fileFindDrv( pszFileName );
+
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->LinkRead( s_pFileTypes[ i ], pszFileName );
+
+   return hb_fsLinkRead( pszFileName );
+}
+
+PHB_FILE hb_fileExtOpen( const char * pszFileName, const char * pDefExt,
                          HB_USHORT uiExFlags, const char * pPaths,
                          PHB_ITEM pError )
 {
-   int i = s_iFileTypes;
+   int i = s_fileFindDrv( pszFileName );
 
-   while( --i >= 0 )
-   {
-      if( s_pFileTypes[ i ]->Accept( pFilename ) )
-         return s_pFileTypes[ i ]->Open( pFilename, pDefExt, uiExFlags, pPaths, pError );
-   }
-   return s_fileExtOpen( pFilename, pDefExt, uiExFlags, pPaths, pError );
+   if( i >= 0 )
+      return s_pFileTypes[ i ]->Open( s_pFileTypes[ i ], pszFileName, pDefExt, uiExFlags, pPaths, pError );
+
+   return s_fileExtOpen( NULL, pszFileName, pDefExt, uiExFlags, pPaths, pError );
 }
 
 void hb_fileClose( PHB_FILE pFile )
@@ -728,6 +1249,18 @@ int hb_fileLockTest( PHB_FILE pFile, HB_FOFFSET nStart, HB_FOFFSET nLen,
    return pFile->pFuncs->LockTest( pFile, nStart, nLen, iType );
 }
 
+HB_SIZE hb_fileRead( PHB_FILE pFile, void * buffer, HB_SIZE nSize,
+                     HB_MAXINT nTimeout )
+{
+   return pFile->pFuncs->Read( pFile, buffer, nSize, nTimeout );
+}
+
+HB_SIZE hb_fileWrite( PHB_FILE pFile, const void * buffer, HB_SIZE nSize,
+                      HB_MAXINT nTimeout )
+{
+   return pFile->pFuncs->Write( pFile, buffer, nSize, nTimeout );
+}
+
 HB_SIZE hb_fileReadAt( PHB_FILE pFile, void * buffer, HB_SIZE nSize,
                        HB_FOFFSET nOffset )
 {
@@ -745,9 +1278,19 @@ HB_BOOL hb_fileTruncAt( PHB_FILE pFile, HB_FOFFSET nOffset )
    return pFile->pFuncs->TruncAt( pFile, nOffset );
 }
 
+HB_FOFFSET hb_fileSeek( PHB_FILE pFile, HB_FOFFSET nOffset, HB_USHORT uiFlags )
+{
+   return pFile->pFuncs->Seek( pFile, nOffset, uiFlags );
+}
+
 HB_FOFFSET hb_fileSize( PHB_FILE pFile )
 {
    return pFile->pFuncs->Size( pFile );
+}
+
+HB_BOOL hb_fileEof( PHB_FILE pFile )
+{
+   return pFile->pFuncs->Eof( pFile );
 }
 
 void hb_fileFlush( PHB_FILE pFile, HB_BOOL fDirty )
@@ -758,6 +1301,11 @@ void hb_fileFlush( PHB_FILE pFile, HB_BOOL fDirty )
 void hb_fileCommit( PHB_FILE pFile )
 {
    pFile->pFuncs->Commit( pFile );
+}
+
+HB_BOOL hb_fileConfigure( PHB_FILE pFile, int iIndex, PHB_ITEM pValue )
+{
+   return pFile->pFuncs->Configure( pFile, iIndex, pValue );
 }
 
 HB_FHANDLE hb_fileHandle( PHB_FILE pFile )
@@ -790,6 +1338,69 @@ PHB_FILE hb_fileCreateTempEx( char * pszName,
    HB_FHANDLE hFile;
 
    hFile = hb_fsCreateTempEx( pszName, pszDir, pszPrefix, pszExt, ulAttr );
+   if( hFile != FS_ERROR )
+      pFile = hb_fileNew( hFile, HB_FALSE, HB_FALSE, 0, 0, HB_FALSE );
+
+   return pFile;
+}
+
+PHB_FILE hb_fileFromHandle( HB_FHANDLE hFile )
+{
+   return hb_fileNew( hFile, HB_FALSE, HB_FALSE, 0, 0, HB_FALSE );
+}
+
+HB_BOOL hb_fileDetach( PHB_FILE pFile )
+{
+   if( pFile )
+   {
+      if( pFile->pFuncs == s_fileMethods() )
+      {
+         pFile->hFile = FS_ERROR;
+         s_fileClose( pFile );
+         return HB_TRUE;
+      }
+#if defined( HB_OS_UNIX )
+      else if( pFile->pFuncs == s_fileposMethods() )
+      {
+         PHB_FILEPOS pFilePos = ( PHB_FILEPOS ) pFile;
+
+         pFilePos->pFile->hFile = FS_ERROR;
+         s_fileposClose( pFile );
+         return HB_TRUE;
+      }
+#endif
+   }
+
+   return HB_FALSE;
+}
+
+HB_BOOL hb_fileIsLocal( PHB_FILE pFile )
+{
+   if( pFile )
+   {
+#if defined( HB_OS_UNIX )
+      if( pFile->pFuncs == s_fileMethods() ||
+          pFile->pFuncs == s_fileposMethods() )
+#else
+      if( pFile->pFuncs == s_fileMethods() )
+#endif
+         return HB_TRUE;
+   }
+
+   return HB_FALSE;
+}
+
+HB_BOOL hb_fileIsLocalName( const char * pszFileName )
+{
+   return s_fileFindDrv( pszFileName ) >= 0;
+}
+
+PHB_FILE hb_filePOpen( const char * pszFileName, const char * pszMode )
+{
+   PHB_FILE pFile = NULL;
+   HB_FHANDLE hFile;
+
+   hFile = hb_fsPOpen( pszFileName, pszMode );
    if( hFile != FS_ERROR )
       pFile = hb_fileNew( hFile, HB_FALSE, HB_FALSE, 0, 0, HB_FALSE );
 

@@ -85,6 +85,7 @@
 #define HB_GTI_REFRESH                    79
 #define HB_GTI_NOTIFIERBLOCKGUI           80
 #define HB_GTI_MAXIMIZABLE                81
+#define HB_GTI_BORDERSIZES                82
 
 /* Presentation Parameters | HB_GTI_PRESPARAMS */
 #define HB_GTI_PP_EXSTYLE                 1
@@ -158,6 +159,7 @@
 #define GOBJ_OBJDATA_COLORBK              7
 #define GOBJ_OBJDATA_IMAGE                8
 #define GOBJ_OBJDATA_BLOCK                9
+#define GOBJ_OBJDATA_PICTUREEX            10
 
 #define GOBJ_IMAGESOURCE_SLOT             1
 #define GOBJ_IMAGESOURCE_RESOURCE         2
@@ -185,6 +187,7 @@
 #define GOBJ_OBJTYPE_OUTLINEEX            18
 #define GOBJ_OBJTYPE_GRIDVERT             19
 #define GOBJ_OBJTYPE_GRIDHORZ             20
+#define GOBJ_OBJTYPE_LABEL_EX2            21
 
 #define GOBJ_OBJTYPE_OBJECT               25  /* One of the above objects */
 

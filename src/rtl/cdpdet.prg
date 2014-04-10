@@ -2,7 +2,7 @@
  * Harbour Project source code:
  *    CP detection
  *
- * Copyright 2012 Viktor Szakats (harbour syenar.net)
+ * Copyright 2012 Viktor Szakats (vszakats.net/harbour)
  * www - http://harbour-project.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -152,7 +152,7 @@ STATIC FUNCTION __CPWinToCPStd( nCPWin )
 /* language[_territory][.codeset] */
 /* [language[_territory][.codeset][@modifier]] */
 /* TODO: handle "C"/"POSIX" values and values starting with "/" */
-STATIC FUNCTION __UnixParseLangCP( cString, /* @ */ cCP, /* @ */ cLang )
+STATIC PROCEDURE __UnixParseLangCP( cString, /* @ */ cCP, /* @ */ cLang )
 
    LOCAL tmp
 
@@ -167,7 +167,7 @@ STATIC FUNCTION __UnixParseLangCP( cString, /* @ */ cCP, /* @ */ cLang )
       cCP := "UTF-8"
    ENDIF
 
-   RETURN NIL
+   RETURN
 
 STATIC FUNCTION __CPUnixToCPStd( cCPUnix )
 

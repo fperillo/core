@@ -487,6 +487,7 @@ extern HB_EXPORT void *   hb_xgrab( HB_SIZE nSize ) HB_MALLOC_ATTR HB_ALLOC_SIZE
 extern HB_EXPORT void     hb_xfree( void * pMem );                    /* frees memory */
 extern HB_EXPORT void *   hb_xrealloc( void * pMem, HB_SIZE nSize ) HB_ALLOC_SIZE_ATTR( 2 ); /* reallocates memory */
 extern HB_EXPORT HB_SIZE  hb_xsize( void * pMem );                    /* returns the size of an allocated memory block */
+extern HB_EXPORT const char * hb_xinfo( void * pMem, HB_USHORT * puiLine ); /* return allocation place (function name and line number) */
 extern HB_EXPORT HB_SIZE  hb_xquery( int iMode );                     /* Query different types of memory information */
 extern HB_EXPORT HB_BOOL  hb_xtraced( void );
 extern HB_EXPORT void     hb_xsetfilename( const char * szValue );
@@ -606,7 +607,6 @@ extern void       hb_vmIsStackRef( void ); /* hvm.c - mark all local variables a
 extern void       hb_vmIsStaticRef( void ); /* hvm.c - mark all static variables as used */
 extern void       hb_gcReleaseAll( void ); /* release all memory blocks unconditionally */
 
-extern void       hb_gcRefCheck( void * pBlock ); /* Check if block still cannot be access after destructor execution */
 extern HB_COUNTER hb_gcRefCount( void * pAlloc );  /* return number of references */
 
 #if 0
@@ -917,7 +917,7 @@ extern HB_EXPORT HB_BOOL   hb_hashDelAt( PHB_ITEM pHash, HB_SIZE nPos );
 #define HB_HASH_KEEPORDER           0x40
 
 #define HB_HASH_FLAG_MASK           0xFFFF
-#define HB_HASH_FLAG_DEFAULT        ( HB_HASH_AUTOADD_ASSIGN | HB_HASH_BINARY )
+#define HB_HASH_FLAG_DEFAULT        ( HB_HASH_AUTOADD_ASSIGN | HB_HASH_BINARY | HB_HASH_KEEPORDER )
 
 #define HB_HASH_UNION      0  /* logical OR  on items in two hash tables */
 #define HB_HASH_INTERSECT  1  /* logical AND on items in two hash tables */

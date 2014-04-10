@@ -1840,6 +1840,30 @@ HB_FUNC( WVT_DRAWPICTURE )
 }
 
 /*
+ *  Wvt_DrawPictureByHandle( nTop, nLeft, nBottom, nRight, hPicture, aPxlOff, lDoNotScale ) -> lOk
+ */
+HB_FUNC( WVT_DRAWPICTUREEX )
+{
+#if ! defined( HB_OS_WIN_CE )
+   POINT xy = { 0, 0 };
+   int   iTop, iLeft, iBottom, iRight;
+
+   if( HB_ISNUM( 5 ) )
+   {
+      xy    = hb_wvt_gtGetXYFromColRow( hb_parni( 2 ), hb_parni( 1 ) );;
+      iTop  = xy.y + hb_parvni( 6, 1 );
+      iLeft = xy.x + hb_parvni( 6, 2 );
+
+      xy      = hb_wvt_gtGetXYFromColRow( hb_parni( 4 ) + 1, hb_parni( 3 ) + 1 );
+      iBottom = xy.y - 1 + hb_parvni( 6, 3 );
+      iRight  = xy.x - 1 + hb_parvni( 6, 4 );
+
+      hb_retl( hb_wvt_gtRenderPicture( iLeft, iTop, iRight - iLeft + 1, iBottom - iTop + 1, ( IPicture * ) ( HB_PTRDIFF ) hb_parnint( 5 ), hb_parl( 7 ) ) );
+   }
+#endif
+}
+
+/*
  *    Wvt_DrawLabelEx( nRow, nCol, cLabel, nAlign, nTextColor, nBkColor, nSlotFont, aPxlOff )
  */
 HB_FUNC( WVT_DRAWLABELEX )
@@ -2714,6 +2738,29 @@ HB_FUNC( WVT_LOADPICTURE )
    hb_retl( bResult );
 }
 
+HB_FUNC( WVT_DESTROYPICTURE )
+{
+   IPicture * iPicture = ( IPicture * ) ( HB_PTRDIFF ) hb_parnl( 1 );
+   hb_retl( hb_wvt_gtDestroyPicture( iPicture ) );
+}
+
+/*
+ *   Wvt_LoadPictureEx( cFilePic )
+ */
+HB_FUNC( WVT_LOADPICTUREEX )
+{
+#if ! defined( HB_OS_WIN_CE )
+   void *     hImage;
+   IPicture * iPicture = hb_wvt_gtLoadPicture( HB_PARSTR( 1, &hImage, NULL ) );
+
+   hb_strfree( hImage );
+   if( iPicture )
+   {
+      hb_retnl( ( HB_PTRDIFF ) iPicture );
+   }
+#endif
+}
+
 HB_FUNC( WVT_LOADPICTUREFROMRESOURCE )
 {
    HB_BOOL bResult = HB_FALSE;
@@ -2736,6 +2783,22 @@ HB_FUNC( WVT_LOADPICTUREFROMRESOURCE )
    }
 #endif
    hb_retl( bResult );
+}
+
+HB_FUNC( WVT_LOADPICTUREFROMRESOURCEEX )
+{
+#if ! defined( HB_OS_WIN_CE )
+   void *     hResource;
+   void *     hSection;
+   IPicture * iPicture = hb_wvt_gtLoadPictureFromResource( HB_PARSTR( 1, &hResource, NULL ), HB_PARSTR( 2, &hSection, NULL ) );
+
+   hb_strfree( hResource );
+   hb_strfree( hSection );
+   if( iPicture )
+   {
+      hb_retnl( ( HB_PTRDIFF ) iPicture );
+   }
+#endif
 }
 
 /*

@@ -50,7 +50,7 @@
  * The following parts are Copyright of the individual authors.
  * www - http://harbour-project.org
  *
- * Copyright 1999-2007 Viktor Szakats (harbour syenar.net)
+ * Copyright 1999-2007 Viktor Szakats (vszakats.net/harbour)
  *    hb_itemPCount()
  *    hb_itemParamPtr()
  *    hb_itemReturnPtr()
@@ -130,7 +130,7 @@ HB_BOOL hb_itemParamStore( HB_USHORT uiParam, PHB_ITEM pItem )
       if( pItem )
          hb_itemCopyToRef( pDest, pItem );
       else
-         hb_itemSetNil( pDest );
+         hb_itemSetNil( hb_itemUnRef( pDest ) );
       return HB_TRUE;
    }
 
@@ -149,7 +149,7 @@ HB_BOOL hb_itemParamStoreForward( HB_USHORT uiParam, PHB_ITEM pItem )
       if( pItem )
          hb_itemMoveToRef( pDest, pItem );
       else
-         hb_itemSetNil( pDest );
+         hb_itemSetNil( hb_itemUnRef( pDest ) );
       return HB_TRUE;
    }
 
@@ -171,7 +171,7 @@ HB_BOOL hb_itemParamStoreRelease( HB_USHORT uiParam, PHB_ITEM pItem )
          hb_itemRelease( pItem );
       }
       else
-         hb_itemSetNil( pDest );
+         hb_itemSetNil( hb_itemUnRef( pDest ) );
       return HB_TRUE;
    }
 

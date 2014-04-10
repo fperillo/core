@@ -178,7 +178,12 @@ HB_EXTERN_BEGIN
    sx_Freeze() set NOUPDATE_RYO
                   indexOpt |= CDX_TYPE_TEMPORARY | CDX_TYPE_CUSTOM;
 */
-
+/*
+ indexSig:
+   0x01     - CLIP like, ignoreCase significant
+   0x20     - ASCII ADI
+   0x00     - UNICODE ADI
+*/
 /* CDX index node strucutres */
 /* Compact Index Header Record */
 typedef struct _CDXTAGHEADER
@@ -189,10 +194,16 @@ typedef struct _CDXTAGHEADER
    HB_BYTE     keySize  [ 2 ];   /* key length */
    HB_BYTE     indexOpt;         /* index options see CDX_TYPE_* */
    HB_BYTE     indexSig;         /* index signature */
-   HB_BYTE     reserved2[ 478 ];
-   HB_BYTE     codepage[ 5 ];    /* VFP codepage */
+   HB_BYTE     headerLen[ 2 ];   /* ADI header length ???: 0x400 */
+   HB_BYTE     pageLen  [ 2 ];   /* ADI (idx) page length */
+   HB_BYTE     signature[ 4 ];   /* ADI (idx) collation signature */
+   HB_BYTE     reserved2[ 68 ];
+   HB_BYTE     lang     [ 26 ];  /* ADI (tag) ex. lt_LT, zh_Hant_TW_ADS_CI */
+   HB_BYTE     collatVer[ 4 ];   /* ADI (tag) collation signature */
+   HB_BYTE     reserved3[ 372 ];
+   HB_BYTE     codepage [ 5 ];   /* VFP codepage */
    HB_BYTE     ignoreCase;       /* 1 = ignore case, key converted to upper */
-   HB_BYTE     reserved3[ 2 ];
+   HB_BYTE     reserved4[ 2 ];
    HB_BYTE     ascendFlg[ 2 ];   /* 0 = ascending  1 = descending */
    HB_BYTE     forExpPos[ 2 ];   /* offset of filter expression */
    HB_BYTE     forExpLen[ 2 ];   /* length of filter expression */
@@ -408,30 +419,30 @@ typedef CDXSWAPPAGE * LPCDXSWAPPAGE;
 
 typedef struct
 {
-   LPCDXTAG   pTag;             /* current Tag */
-   HB_FHANDLE hTempFile;        /* handle to temporary file */
-   char *     szTempFileName;   /* temporary file name */
-   int        keyLen;           /* key length */
-   HB_BYTE    bTrl;             /* filler char for shorter keys */
-   HB_BOOL    fUnique;          /* HB_TRUE if index is unique */
-   HB_BOOL    fReindex;         /* HB_TRUE if reindexing is in process */
-   HB_ULONG   ulMaxRec;         /* the highest record number */
-   HB_ULONG   ulTotKeys;        /* total number of keys indexed */
-   HB_ULONG   ulKeys;           /* keys in curently created page */
-   HB_ULONG   ulPages;          /* number of pages */
-   HB_ULONG   ulCurPage;        /* current page */
-   HB_ULONG   ulPgKeys;         /* maximum number of key in page memory buffer */
-   HB_ULONG   ulMaxKey;         /* maximum number of keys in single page */
-   HB_BYTE *  pKeyPool;         /* memory buffer for current page then for pages */
-   LPCDXSWAPPAGE pSwapPage;     /* list of pages */
-   LPCDXPAGE  NodeList[ CDX_STACKSIZE ];   /* Stack of pages */
+   LPCDXTAG   pTag;           /* current Tag */
+   PHB_FILE   pTempFile;      /* handle to temporary file */
+   char *     szTempFileName; /* temporary file name */
+   int        keyLen;         /* key length */
+   HB_BYTE    bTrl;           /* filler char for shorter keys */
+   HB_BOOL    fUnique;        /* HB_TRUE if index is unique */
+   HB_BOOL    fReindex;       /* HB_TRUE if reindexing is in process */
+   HB_ULONG   ulMaxRec;       /* the highest record number */
+   HB_ULONG   ulTotKeys;      /* total number of keys indexed */
+   HB_ULONG   ulKeys;         /* keys in curently created page */
+   HB_ULONG   ulPages;        /* number of pages */
+   HB_ULONG   ulCurPage;      /* current page */
+   HB_ULONG   ulPgKeys;       /* maximum number of key in page memory buffer */
+   HB_ULONG   ulMaxKey;       /* maximum number of keys in single page */
+   HB_BYTE *  pKeyPool;       /* memory buffer for current page then for pages */
+   LPCDXSWAPPAGE pSwapPage;   /* list of pages */
+   LPCDXPAGE  NodeList[ CDX_STACKSIZE ];  /* Stack of pages */
    HB_ULONG   ulFirst;
    HB_ULONG * pSortedPages;
-   HB_BYTE    pLastKey[ CDX_MAXKEY ]; /* last key val */
+   HB_BYTE    pLastKey[ CDX_MAXKEY ];  /* last key val */
    HB_ULONG   ulLastRec;
    HB_BYTE *  pRecBuff;
 #ifndef HB_CDX_PACKTRAIL
-   int        iLastTrl;         /* last key trailing spaces */
+   int        iLastTrl;       /* last key trailing spaces */
 #endif
 } CDXSORTINFO;
 typedef CDXSORTINFO * LPCDXSORTINFO;

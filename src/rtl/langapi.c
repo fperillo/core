@@ -2,7 +2,7 @@
  * Harbour Project source code:
  * The Language API
  *
- * Copyright 1999-2001 Viktor Szakats (harbour syenar.net)
+ * Copyright 1999-2001 Viktor Szakats (vszakats.net/harbour)
  * www - http://harbour-project.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -229,8 +229,11 @@ static void hb_langRelease( PHB_LANG_BASE pBase )
    if( pBase->lang )
    {
       if( pBase->buffer )
+      {
          hb_xfree( pBase->buffer );
-      pBase->lang = NULL;
+         pBase->buffer = NULL;
+      }
+      pBase->lang = pBase == s_langList ? &s_lang_en : NULL;
    }
 }
 

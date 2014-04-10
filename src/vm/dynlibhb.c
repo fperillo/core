@@ -138,6 +138,11 @@ PHB_ITEM hb_libLoad( PHB_ITEM pLibName, PHB_ITEM pArgs )
          }
 #elif defined( HB_HAS_DLFCN )
          hDynLib = ( void * ) dlopen( hb_itemGetCPtr( pLibName ), RTLD_LAZY | RTLD_GLOBAL );
+
+         if( ! hDynLib )
+         {
+            HB_TRACE( HB_TR_DEBUG, ( "hb_libLoad(): dlopen(): %s", dlerror() ) );
+         }
 #else
          {
             int iTODO;
@@ -203,7 +208,12 @@ void * hb_libSymAddr( PHB_ITEM pDynLib, const char * pszSymbol )
 
    if( hDynLib )
    {
-#if defined( HB_OS_WIN )
+#if defined( HB_OS_WIN_CE )
+      LPTSTR lpSymbol = hb_mbtowc( pszSymbol );
+      void * hFuncAddr = ( void * ) GetProcAddress( ( HMODULE ) hDynLib, lpSymbol );
+      hb_xfree( lpSymbol );
+      return hFuncAddr;
+#elif defined( HB_OS_WIN )
       return ( void * ) GetProcAddress( ( HMODULE ) hDynLib, pszSymbol );
 #elif defined( HB_OS_OS2 )
       PFN pProcAddr = NULL;

@@ -2,7 +2,7 @@
  * Harbour Project source code:
  * Tracing functions.
  *
- * Copyright 2009 Viktor Szakats (harbour syenar.net)
+ * Copyright 2009 Viktor Szakats (vszakats.net/harbour)
  * Copyright 1999 Gonzalo Diethelm <gonzalo.diethelm@iname.com>
  * www - http://harbour-project.org
  *
@@ -187,8 +187,6 @@ int hb_tr_level( void )
 
       s_level = HB_TR_DEFAULT;
 
-      /* ; */
-
       if( s_fp == NULL )
       {
          if( hb_getenv_buffer( "HB_TR_OUTPUT", env, sizeof( env ) ) &&
@@ -202,8 +200,6 @@ int hb_tr_level( void )
          else
             s_fp = stderr;
       }
-
-      /* ; */
 
       if( hb_getenv_buffer( "HB_TR_LEVEL", env, sizeof( env ) ) &&
           env[ 0 ] != '\0' )
@@ -221,23 +217,17 @@ int hb_tr_level( void )
          }
       }
 
-      /* ; */
-
       if( s_sysout < 0 )
       {
          s_sysout = ( hb_getenv_buffer( "HB_TR_SYSOUT", env, sizeof( env ) ) &&
                       env[ 0 ] != '\0' ) ? 1 : 0;
       }
 
-      /* ; */
-
       if( s_flush < 0 )
       {
          s_flush = ( hb_getenv_buffer( "HB_TR_FLUSH", env, sizeof( env ) ) &&
                      env[ 0 ] != '\0' ) ? 1 : 0;
       }
-
-      /* ; */
 
       s_enabled = enabled;
    }

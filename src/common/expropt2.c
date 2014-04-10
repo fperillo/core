@@ -317,7 +317,7 @@ PHB_EXPR hb_compExprReduceMult( PHB_EXPR pSelf, HB_COMP_DECL )
 
             pSelf->value.asNum.val.d   = pLeft->value.asNum.val.d * pRight->value.asNum.val.d;
             pSelf->value.asNum.bWidth  = HB_DEFAULT_WIDTH;
-            pSelf->value.asNum.bDec    = ( HB_UCHAR ) ( pLeft->value.asNum.bDec + pRight->value.asNum.bDec );
+            pSelf->value.asNum.bDec    = ( HB_UCHAR ) HB_MIN( pLeft->value.asNum.bDec + pRight->value.asNum.bDec, HB_DEFAULT_DECIMALS );
             pSelf->value.asNum.NumType = HB_ET_DOUBLE;
             break;
 
@@ -1961,8 +1961,8 @@ PHB_EXPR hb_compExprReduceIIF( PHB_EXPR pSelf, HB_COMP_DECL )
 PHB_EXPR hb_compExprListStrip( PHB_EXPR pSelf, HB_COMP_DECL )
 {
    while( pSelf->ExprType == HB_ET_LIST &&
-          pSelf->value.asList.pExprList->ExprType <= HB_ET_VARIABLE &&
-          hb_compExprListLen( pSelf ) == 1 )
+          hb_compExprListLen( pSelf ) == 1 &&
+          pSelf->value.asList.pExprList->ExprType <= HB_ET_VARIABLE )
    {
       /* replace the list with a simple expression
        *  ( EXPR ) -> EXPR

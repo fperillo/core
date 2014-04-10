@@ -2,7 +2,7 @@
  * Harbour Project source code:
  * DiskSpace() function
  *
- * Copyright 1999-2001 Viktor Szakats (harbour syenar.net)
+ * Copyright 1999-2001 Viktor Szakats (vszakats.net/harbour)
  * www - http://harbour-project.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -163,10 +163,10 @@ HB_FUNC( DISKSPACE )
 
             if( ! s_fInit )
             {
-               s_pGetDiskFreeSpaceEx =
-                  ( P_GDFSE )
-                     GetProcAddress( GetModuleHandle( HB_WINAPI_KERNEL32_DLL() ),
-                                     HB_WINAPI_FUNCTION_NAME( "GetDiskFreeSpaceEx" ) );
+               HMODULE hModule = GetModuleHandle( HB_WINAPI_KERNEL32_DLL() );
+               if( hModule )
+                  s_pGetDiskFreeSpaceEx = ( P_GDFSE )
+                     HB_WINAPI_GETPROCADDRESST( hModule, "GetDiskFreeSpaceEx" );
                s_fInit = HB_TRUE;
             }
 

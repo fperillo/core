@@ -1432,7 +1432,8 @@ static int hb_hsxCreate( const char * szFile, int iBufSize, int iKeySize,
 
    pFile = hb_fileExtOpen( szFileName, HSX_FILEEXT,
                            FO_READWRITE | FO_EXCLUSIVE | FXO_TRUNCATE |
-                           FXO_DEFAULTS | FXO_SHARELOCK | FXO_COPYNAME,
+                           FXO_DEFAULTS | FXO_SHARELOCK | FXO_COPYNAME |
+                           FXO_NOSEEKPOS,
                            NULL, NULL );
 
    if( ! pFile )
@@ -1507,7 +1508,8 @@ static int hb_hsxOpen( const char * szFile, int iBufSize, int iMode )
              ( fShared ? FO_DENYNONE : FO_EXCLUSIVE );
 
    pFile = hb_fileExtOpen( szFileName, HSX_FILEEXT,
-                           uiFlags | FXO_DEFAULTS | FXO_SHARELOCK | FXO_COPYNAME,
+                           uiFlags | FXO_DEFAULTS | FXO_SHARELOCK |
+                           FXO_COPYNAME | FXO_NOSEEKPOS,
                            NULL, NULL );
 
    if( ! pFile )
@@ -2020,7 +2022,7 @@ HB_FUNC( HS_VERSION )
    char * pszHBVersion, * pszVersion;
 
    pszHBVersion = hb_verHarbour();
-   pszVersion = hb_xstrcat( NULL, szVer, ": ", pszHBVersion );
+   pszVersion = hb_xstrcpy( NULL, szVer, ": ", pszHBVersion, NULL );
    hb_retclen_buffer( pszVersion, strlen( pszVersion ) );
    hb_xfree( pszHBVersion );
 }

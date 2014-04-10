@@ -2114,9 +2114,8 @@ static int hb_ctw_gt_Alert( PHB_GT pGT, PHB_ITEM pMessage, PHB_ITEM pOptions,
 
    HB_TRACE( HB_TR_DEBUG, ( "hb_ctw_gt_Alert(%p,%p,%p,%d,%d,%f)", pGT, pMessage, pOptions, iClrNorm, iClrHigh, dDelay ) );
 
-   iOptions = ( int ) hb_arrayLen( pOptions );
-
-   if( HB_IS_STRING( pMessage ) && iOptions > 0 )
+   if( pMessage && HB_IS_STRING( pMessage ) &&
+       pOptions && ( iOptions = ( int ) hb_arrayLen( pOptions ) ) > 0 )
    {
       int iRows, iCols;
       HB_BOOL fScreen;
@@ -2244,7 +2243,7 @@ static int hb_ctw_gt_Alert( PHB_GT pGT, PHB_ITEM pMessage, PHB_ITEM pOptions,
                HB_GTSELF_DISPEND( pGT );
             HB_GTSELF_REFRESH( pGT );
 
-            iKey = HB_GTSELF_INKEYGET( pGT, HB_TRUE, dDelay, INKEY_ALL | HB_INKEY_EXT );
+            iKey = HB_GTSELF_INKEYGET( pGT, HB_TRUE, dDelay, INKEY_ALL );
             /* TODO: add support for SET KEY blocks */
 
             if( iKey == K_ESC )
@@ -2291,7 +2290,7 @@ static int hb_ctw_gt_Alert( PHB_GT pGT, PHB_ITEM pMessage, PHB_ITEM pOptions,
                PHB_CODEPAGE cdp = hb_vmCDP();
                for( i = 1; i <= iOptions; ++i )
                {
-                  HB_SIZE nOptLen = hb_arrayGetCLen( pOptions, i );
+                  nOptLen = hb_arrayGetCLen( pOptions, i );
                   if( nOptLen > 0 )
                   {
                      HB_SIZE nIdx1 = 0, nIdx2 = 0;
@@ -2354,8 +2353,9 @@ static void hb_ctw_gt_RedrawDiff( PHB_GT pGT )
       HB_GTSUPER_REDRAWDIFF( pGT );
    else if( pGT->fRefresh )
    {
-      int i, l, r;
+      int i, l, r, s;
       long lIndex;
+      HB_U32 uiValue;
 
       for( i = 0; i < pGT->iHeight; ++i )
       {
@@ -2365,27 +2365,24 @@ static void hb_ctw_gt_RedrawDiff( PHB_GT pGT )
             for( l = 0; l < pGT->iWidth; ++l, ++lIndex )
             {
                if( pGT->prevBuffer[ lIndex ].uiValue !=
-                   hb_ctw_gt_cellValue( pGT, i, l ) )
-                  break;
-            }
-            if( l < pGT->iWidth )
-            {
-               lIndex = ( long ) ( i + 1 ) * pGT->iWidth - 1;
-               for( r = pGT->iWidth - 1; r > l; --r, --lIndex )
+                   ( uiValue = hb_ctw_gt_cellValue( pGT, i, l ) ) )
                {
-                  if( pGT->prevBuffer[ lIndex ].uiValue !=
-                      hb_ctw_gt_cellValue( pGT, i, r ) )
-                     break;
+                  pGT->prevBuffer[ lIndex ].uiValue = uiValue;
+                  s = r = l;
+                  while( ++l < pGT->iWidth )
+                  {
+                     ++lIndex;
+                     if( pGT->prevBuffer[ lIndex ].uiValue !=
+                         ( uiValue = hb_ctw_gt_cellValue( pGT, i, l ) ) )
+                     {
+                        pGT->prevBuffer[ lIndex ].uiValue = uiValue;
+                        r = l;
+                     }
+                     else if( pGT->iRedrawMax != 0 && l - r >= pGT->iRedrawMax )
+                        break;
+                  }
+                  HB_GTSELF_REDRAW( pGT, i, s, r - s + 1 );
                }
-               HB_GTSELF_REDRAW( pGT, i, l, r - l + 1 );
-               lIndex = ( long ) i * pGT->iWidth + l;
-               do
-               {
-                  pGT->prevBuffer[ lIndex ].uiValue =
-                     hb_ctw_gt_cellValue( pGT, i, l );
-                  ++lIndex;
-               }
-               while( ++l <= r );
             }
             pGT->pLines[ i ] = HB_FALSE;
          }
@@ -2474,13 +2471,17 @@ int  hb_ctwSetBorderMode( int iTop, int iLeft, int iBottom, int iRight )
 int  hb_ctwCreateWindow( int iTop, int iLeft, int iBottom, int iRight, HB_BOOL fClear, int iColor, HB_BOOL fVisible )
 {
    int iResult = -1;
-   PHB_GTCTW pCTW = hb_ctw_base();
 
-   if( pCTW )
+   if( iTop <= iBottom && iLeft <= iRight )
    {
-      iResult = hb_ctw_CreateWindow( pCTW, iTop, iLeft, iBottom, iRight, fClear, iColor, fVisible );
-      HB_GTSELF_FLUSH( pCTW->pGT );
-      hb_gt_BaseFree( pCTW->pGT );
+      PHB_GTCTW pCTW = hb_ctw_base();
+
+      if( pCTW )
+      {
+         iResult = hb_ctw_CreateWindow( pCTW, iTop, iLeft, iBottom, iRight, fClear, iColor, fVisible );
+         HB_GTSELF_FLUSH( pCTW->pGT );
+         hb_gt_BaseFree( pCTW->pGT );
+      }
    }
    return iResult;
 }

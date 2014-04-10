@@ -50,7 +50,7 @@
  * The following parts are Copyright of the individual authors.
  * www - http://harbour-project.org
  *
- * Copyright 1999-2001 Viktor Szakats (harbour syenar.net)
+ * Copyright 1999-2001 Viktor Szakats (vszakats.net/harbour)
  *    hb_vmPushLongConst()
  *    hb_vmPushDoubleConst()
  *
@@ -520,6 +520,29 @@ void hb_vmLock( void )
    }
 }
 
+void hb_vmLockForce( void )
+{
+   HB_STACK_TLS_PRELOAD
+
+   if( hb_stackId() )   /* check if thread has associated HVM stack */
+   {
+      if( hb_stackLock() == 0 )
+      {
+         HB_VM_LOCK();
+         if( hb_vmThreadRequest & HB_THREQUEST_QUIT )
+         {
+            if( ! hb_stackQuitState() )
+            {
+               hb_stackSetQuitState( HB_TRUE );
+               hb_stackSetActionRequest( HB_QUIT_REQUESTED );
+            }
+         }
+         s_iRunningCount++;
+         HB_VM_UNLOCK();
+      }
+   }
+}
+
 /* (try to) stop all threads except current one */
 HB_BOOL hb_vmSuspendThreads( HB_BOOL fWait )
 {
@@ -533,7 +556,6 @@ HB_BOOL hb_vmSuspendThreads( HB_BOOL fWait )
       {
          if( s_iRunningCount <= 0 )
          {
-            hb_vmThreadRequest &= ~HB_THREQUEST_STOP;
             ++s_iRunningCount;
             return HB_TRUE;
          }
@@ -543,8 +565,8 @@ HB_BOOL hb_vmSuspendThreads( HB_BOOL fWait )
          if( hb_vmThreadRequest & HB_THREQUEST_QUIT )
             break;
       }
-      hb_vmThreadRequest &= ~HB_THREQUEST_STOP;
       ++s_iRunningCount;
+      hb_vmThreadRequest &= ~HB_THREQUEST_STOP;
       hb_threadCondBroadcast( &s_vmCond );
    }
 
@@ -1158,13 +1180,13 @@ int hb_vmQuit( void )
    hb_vmDebuggerExit( HB_TRUE );
 #endif
 
-   /* release thread specific data */
-   hb_stackDestroyTSD();
-
    /* stop executing PCODE (HVM reenter request) */
    s_fHVMActive = HB_FALSE;
 
    hb_vmStaticsClear();
+
+   /* release thread specific data */
+   hb_stackDestroyTSD();
 
    hb_errExit();
    hb_clsReleaseAll();
@@ -5442,29 +5464,29 @@ static void hb_vmArrayDim( HB_USHORT uiDimensions ) /* generates an uiDimensions
 static void hb_vmHashGen( HB_SIZE nElements ) /* generates an nElements Hash and fills it from the stack values */
 {
    HB_STACK_TLS_PRELOAD
-   PHB_ITEM pHash, pKey, pVal;
+   PHB_ITEM pHash;
+   int iPos;
 
    HB_TRACE( HB_TR_DEBUG, ( "hb_vmHashGen(%" HB_PFS "u)", nElements ) );
 
    /* create new hash item */
    pHash = hb_hashNew( NULL );
    hb_hashPreallocate( pHash, nElements );
-   while( nElements-- )
+   nElements <<= 1;
+   iPos = - ( int ) nElements;
+   while( iPos )
    {
-      pKey = hb_stackItemFromTop( -2 );
-      pVal = hb_stackItemFromTop( -1 );
+      PHB_ITEM pKey = hb_stackItemFromTop( iPos++ );
+      PHB_ITEM pVal = hb_stackItemFromTop( iPos++ );
       if( HB_IS_HASHKEY( pKey ) )
-      {
-         hb_hashAddNew( pHash, pKey, pVal );
-         hb_stackPop();
-         hb_stackPop();
-      }
+         hb_hashAdd( pHash, pKey, pVal );
       else
       {
          hb_errRT_BASE( EG_BOUND, 1133, NULL, hb_langDGetErrorDesc( EG_ARRASSIGN ), 3, pHash, pKey, pVal );
          break;
       }
    }
+   hb_stackRemove( hb_stackTopOffset() - nElements );
    hb_itemMove( hb_stackAllocItem(), pHash );
    hb_itemRelease( pHash );
 }
@@ -6477,14 +6499,10 @@ static void hb_vmTSVRefClear( void * value )
 {
    if( hb_xRefDec( value ) )
    {
-      PHB_ITEM pItem;
-
       if( HB_IS_COMPLEX( &( ( PHB_TSVREF ) value )->source ) )
          hb_itemClear( &( ( PHB_TSVREF ) value )->source );
 
-      pItem = ( PHB_ITEM ) hb_stackTestTSD( &( ( PHB_TSVREF ) value )->threadData );
-      if( pItem && HB_IS_COMPLEX( pItem ) )
-         hb_itemClear( pItem );
+      hb_stackReleaseTSD( &( ( PHB_TSVREF ) value )->threadData );
 
       hb_xfree( value );
    }
@@ -7841,13 +7859,14 @@ void hb_vmExitSymbolGroup( void * hDynLib )
 
 PHB_SYMBOLS hb_vmRegisterSymbols( PHB_SYMB pModuleSymbols, HB_USHORT uiSymbols,
                                   const char * szModuleName, HB_ULONG ulID,
-                                  HB_BOOL fDynLib, HB_BOOL fClone )
+                                  HB_BOOL fDynLib, HB_BOOL fClone,
+                                  HB_BOOL fOverLoad )
 {
    PHB_SYMBOLS pNewSymbols;
    HB_BOOL fRecycled, fInitStatics = HB_FALSE;
    HB_USHORT ui;
 
-   HB_TRACE( HB_TR_DEBUG, ( "hb_vmRegisterSymbols(%p,%hu,%s,%lu,%d,%d)", pModuleSymbols, uiSymbols, szModuleName, ulID, ( int ) fDynLib, ( int ) fClone ) );
+   HB_TRACE( HB_TR_DEBUG, ( "hb_vmRegisterSymbols(%p,%hu,%s,%lu,%d,%d,%d)", pModuleSymbols, uiSymbols, szModuleName, ulID, ( int ) fDynLib, ( int ) fClone, ( int ) fOverLoad ) );
 
    pNewSymbols = s_ulFreeSymbols == 0 ? NULL :
                  hb_vmFindFreeModule( pModuleSymbols, uiSymbols, szModuleName, ulID );
@@ -7972,6 +7991,13 @@ PHB_SYMBOLS hb_vmRegisterSymbols( PHB_SYMB pModuleSymbols, HB_USHORT uiSymbols,
 
             if( pDynSym )
             {
+               if( fOverLoad && ( pSymbol->scope.value & HB_FS_LOCAL ) != 0 )
+               {
+                  /* overload existing public function */
+                  pDynSym->pSymbol = pSymbol;
+                  hb_vmSetDynFunc( pDynSym );
+                  continue;
+               }
                pSymbol->pDynSym = pDynSym;
                if( pDynSym->pSymbol != pSymbol && HB_VM_ISFUNC( pDynSym->pSymbol ) &&
                    ( pDynSym->pSymbol->value.pFunPtr != pSymbol->value.pFunPtr ||
@@ -8004,6 +8030,40 @@ PHB_SYMBOLS hb_vmRegisterSymbols( PHB_SYMB pModuleSymbols, HB_USHORT uiSymbols,
    return pNewSymbols;
 }
 
+static void hb_vmVerifySymbols( PHB_ITEM pArray )
+{
+   PHB_SYMBOLS pLastSymbols = s_pSymbols;
+   PHB_ITEM pItem = NULL;
+
+   HB_TRACE( HB_TR_DEBUG, ( "hb_vmVerifySymbols(%p)", pArray ) );
+
+   hb_arrayNew( pArray, 0 );
+
+   while( pLastSymbols )
+   {
+      HB_USHORT ui, uiSymbols = pLastSymbols->uiModuleSymbols;
+
+      for( ui = 0; ui < uiSymbols; ++ui )
+      {
+         PHB_SYMB pSym = pLastSymbols->pModuleSymbols + ui;
+
+         if( pSym->pDynSym &&
+             hb_dynsymFind( pSym->szName ) != pSym->pDynSym )
+         {
+            char szText[ 256 ];
+
+            hb_snprintf( szText, sizeof( szText ), "%s->%s",
+                         pLastSymbols->szModuleName, pSym->szName );
+            pItem = hb_itemPutC( pItem, szText );
+            hb_arrayAddForward( pArray, pItem );
+         }
+      }
+      pLastSymbols = pLastSymbols->pNext;
+   }
+   if( pItem )
+      hb_itemRelease( pItem );
+}
+
 static void hb_vmVerifyPCodeVersion( const char * szModuleName, HB_USHORT uiPCodeVer )
 {
    if( uiPCodeVer != 0 )
@@ -8019,7 +8079,6 @@ static void hb_vmVerifyPCodeVersion( const char * szModuleName, HB_USHORT uiPCod
                          "Please recompile.", szModuleName, szPCode );
       }
    }
-
 }
 
 /*
@@ -8033,7 +8092,8 @@ PHB_SYMB hb_vmProcessSymbols( PHB_SYMB pSymbols, HB_USHORT uiModuleSymbols,
 
    hb_vmVerifyPCodeVersion( szModuleName, uiPCodeVer );
    return hb_vmRegisterSymbols( pSymbols, uiModuleSymbols, szModuleName, ulID,
-                                s_fCloneSym, s_fCloneSym )->pModuleSymbols;
+                                s_fCloneSym, s_fCloneSym,
+                                HB_FALSE )->pModuleSymbols;
 }
 
 PHB_SYMB hb_vmProcessDynLibSymbols( PHB_SYMB pSymbols, HB_USHORT uiModuleSymbols,
@@ -8044,7 +8104,7 @@ PHB_SYMB hb_vmProcessDynLibSymbols( PHB_SYMB pSymbols, HB_USHORT uiModuleSymbols
 
    hb_vmVerifyPCodeVersion( szModuleName, uiPCodeVer );
    return hb_vmRegisterSymbols( pSymbols, uiModuleSymbols, szModuleName, ulID,
-                                HB_TRUE, HB_TRUE )->pModuleSymbols;
+                                HB_TRUE, HB_TRUE, HB_FALSE )->pModuleSymbols;
 }
 
 static void hb_vmReleaseLocalSymbols( void )
@@ -11988,6 +12048,7 @@ void hb_vmIsStackRef( void )
       PHB_THREADSTATE pStack = s_vmStackLst;
       do
       {
+         hb_gcMark( pStack );
          if( pStack->fActive && pStack->pStackId )
             hb_stackIsStackRef( pStack->pStackId, hb_vmTSVarClean );
          pStack = pStack->pNext;
@@ -12131,6 +12192,13 @@ HB_FUNC( __VMITEMID )
       else if( HB_IS_BLOCK( pItem ) )
          hb_retptr( hb_codeblockId( pItem ) );
    }
+}
+
+HB_FUNC( __VMMODULESVERIFY )
+{
+   HB_STACK_TLS_PRELOAD
+
+   hb_vmVerifySymbols( hb_stackReturnItem() );
 }
 
 HB_FUNC( HB_ARRAYTOPARAMS )

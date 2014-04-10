@@ -2,7 +2,7 @@
  * Harbour Project source code:
  * Windows API functions (shellapi.h - shell32.dll)
  *
- * Copyright 2008-2009 Viktor Szakats (harbour syenar.net)
+ * Copyright 2008-2009 Viktor Szakats (vszakats.net/harbour)
  * www - http://harbour-project.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -87,7 +87,7 @@ HB_FUNC( WAPI_ISUSERANADMIN )
    {
       typedef int ( WINAPI * ISUSERANADMIN )( void );
       ISUSERANADMIN pIsUserAnAdmin = ( ISUSERANADMIN )
-                                     GetProcAddress( hLib, "IsUserAnAdmin" );
+                                     HB_WINAPI_GETPROCADDRESS( hLib, "IsUserAnAdmin" );
       if( pIsUserAnAdmin )
          bResult = ( pIsUserAnAdmin )();
 

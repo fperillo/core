@@ -2134,7 +2134,7 @@ static LRESULT CALLBACK hb_gt_wvt_WndProc( HWND hWnd, UINT message, WPARAM wPara
             PHB_ITEM pEvParams = hb_itemNew( NULL );
             if( hb_gt_wvt_FireEvent( pWVT, HB_GTE_CLOSE, pEvParams ) == 0 )
             {
-               hb_gt_wvt_AddCharToInputQueue( pWVT, K_ESC );
+               hb_gt_wvt_AddCharToInputQueue( pWVT, HB_K_CLOSE );
 #if 0
                PHB_ITEM pItem = hb_itemPutL( NULL, HB_TRUE );
                hb_setSetItem( HB_SET_CANCEL, pItem );
@@ -2702,10 +2702,10 @@ static HB_BOOL hb_gt_wvt_FullScreen( PHB_GT pGT )
    rt.bottom = 0;
 
 #ifdef MONITOR_DEFAULTTONEAREST
-   pMonitorFromWindow = ( P_MFW ) GetProcAddress( GetModuleHandle( TEXT( "user32.dll" ) ),
-                                                  "MonitorFromWindow" );
-   pGetMonitorInfo = ( P_GMI ) GetProcAddress( GetModuleHandle( TEXT( "user32.dll" ) ),
-                                               "GetMonitorInfo" );
+   pMonitorFromWindow = ( P_MFW ) HB_WINAPI_GETPROCADDRESS( GetModuleHandle( TEXT( "user32.dll" ) ),
+                                                            "MonitorFromWindow" );
+   pGetMonitorInfo = ( P_GMI ) HB_WINAPI_GETPROCADDRESS( GetModuleHandle( TEXT( "user32.dll" ) ),
+                                                         "GetMonitorInfo" );
 
    if( pMonitorFromWindow && pGetMonitorInfo )
    {
@@ -2842,9 +2842,16 @@ static HB_BOOL hb_gt_wvt_SetMode( PHB_GT pGT, int iRow, int iCol )
 static HB_BOOL hb_gt_wvt_PutChar( PHB_GT pGT, int iRow, int iCol,
                                   int iColor, HB_BYTE bAttr, HB_USHORT usChar )
 {
+   PHB_GTWVT pWVT;
+
    if( HB_GTSUPER_PUTCHAR( pGT, iRow, iCol, iColor, bAttr, usChar ) )
    {
-      HB_GTSELF_TOUCHCELL( pGT, iRow, iCol );
+      pWVT = HB_GTWVT_GET( pGT );
+      if( pWVT->bGui )
+         HB_GTSELF_TOUCHCELL( pGT, iRow, iCol );
+      else
+         HB_GTSUPER_TOUCHCELL( pGT, iRow, iCol );
+
       return HB_TRUE;
    }
    return HB_FALSE;
@@ -3126,15 +3133,64 @@ static HB_BOOL hb_gt_wvt_Info( PHB_GT pGT, int iType, PHB_GT_INFO pInfo )
       case HB_GTI_SCREENHEIGHT:
          pInfo->pResult = hb_itemPutNI( pInfo->pResult, pWVT->PTEXTSIZE.y * pWVT->ROWS );
          iVal = hb_itemGetNI( pInfo->pNewVal );
-         if( iVal > 0 )
+         if( iVal > 0 && ! pWVT->bMaximized && ! pWVT->bFullScreen && pWVT->hWnd )  /* Don't allow if Maximized or FullScreen */
+         {
+            RECT ci;
             HB_GTSELF_SETMODE( pGT, ( iVal / pWVT->PTEXTSIZE.y ), pWVT->COLS );
+
+            /* Now conforms to pWVT->ResizeMode setting, resize by FONT or ROWS as applicable [HVB] */
+            GetClientRect( pWVT->hWnd, &ci );
+            if( ci.bottom != iVal )
+            {
+               RECT wi;
+               GetWindowRect( pWVT->hWnd, &wi );
+               iVal += wi.bottom - wi.top - ci.bottom;
+               SetWindowPos( pWVT->hWnd, NULL, wi.left, wi.top, wi.right - wi.left, iVal, SWP_NOZORDER );
+               hb_gt_wvt_FitSizeRows( pWVT );   /* Needed because GTWVG does not adjust to resize until WM_EXITSIZEMOVE is received */
+            }
+         }
          break;
 
       case HB_GTI_SCREENWIDTH:
          pInfo->pResult = hb_itemPutNI( pInfo->pResult, pWVT->PTEXTSIZE.x * pWVT->COLS );
          iVal = hb_itemGetNI( pInfo->pNewVal );
-         if( iVal > 0 )
-            HB_GTSELF_SETMODE( pGT, pWVT->ROWS, ( iVal / pWVT->PTEXTSIZE.x ) );
+         if( iVal > 0 && ! pWVT->bMaximized && ! pWVT->bFullScreen && pWVT->hWnd )  /* Don't allow if Maximized or FullScreen */
+         {
+            RECT ci;
+            HB_GTSELF_SETMODE( pGT, ( iVal / pWVT->PTEXTSIZE.y ), pWVT->COLS );
+
+            /* Now conforms to pWVT->ResizeMode setting, resize by FONT or ROWS as applicable [HVB] */
+            GetClientRect( pWVT->hWnd, &ci );
+            if( ci.right != iVal )
+            {
+               RECT wi;
+               GetWindowRect( pWVT->hWnd, &wi );
+               iVal += wi.right - wi.left - ci.right;
+               SetWindowPos( pWVT->hWnd, NULL, wi.left, wi.top, iVal, wi.bottom - wi.top, SWP_NOZORDER );
+               hb_gt_wvt_FitSizeRows( pWVT );   /* Needed because GTWVG does not adjust to resize until WM_EXITSIZEMOVE is received */
+            }
+         }
+         break;
+
+      case HB_GTI_BORDERSIZES:
+         if( pWVT->hWnd )
+         {
+            RECT ci, wi;
+            int borderWidth, borderHeight;
+
+            GetClientRect( pWVT->hWnd, &ci );
+            GetWindowRect( pWVT->hWnd, &wi );
+
+            borderWidth = ( wi.right - wi.left - ( ci.right - ci.left ) ) / 2;
+            borderHeight = ( wi.bottom - wi.top - ( ci.bottom - ci.top ) );
+
+            pInfo->pResult = hb_itemNew( NULL );
+            hb_arrayNew( pInfo->pResult, 4 );
+            hb_arraySetNI( pInfo->pResult, 1, borderWidth );
+            hb_arraySetNI( pInfo->pResult, 2, borderHeight - borderWidth );
+            hb_arraySetNI( pInfo->pResult, 3, borderWidth );
+            hb_arraySetNI( pInfo->pResult, 4, borderWidth );
+         }
          break;
 
       case HB_GTI_DESKTOPWIDTH:
@@ -4257,7 +4313,7 @@ static void hb_wvt_gtLoadGuiData( void )
    if( h )
    {
       /* workaround for wrong declarations in some old C compilers */
-      s_guiData->pfnGF = ( wvtGradientFill ) GetProcAddress( h, "GradientFill" );
+      s_guiData->pfnGF = ( wvtGradientFill ) HB_WINAPI_GETPROCADDRESS( h, "GradientFill" );
       if( s_guiData->pfnGF )
          s_guiData->hMSImg32 = h;
    }
@@ -4265,7 +4321,7 @@ static void hb_wvt_gtLoadGuiData( void )
    h = GetModuleHandle( TEXT( "user32.dll" ) );
    if( h )
    {
-      s_guiData->pfnLayered = ( wvtSetLayeredWindowAttributes ) GetProcAddress( h, "SetLayeredWindowAttributes" );
+      s_guiData->pfnLayered = ( wvtSetLayeredWindowAttributes ) HB_WINAPI_GETPROCADDRESS( h, "SetLayeredWindowAttributes" );
       if( s_guiData->pfnLayered )
          s_guiData->hUser32 = h;
    }

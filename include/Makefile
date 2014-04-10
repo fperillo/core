@@ -1,4 +1,3 @@
-
 ROOT := ../
 
 C_HEADERS := \
@@ -78,6 +77,7 @@ C_HEADERS := \
    hbxvm.h \
    hbwince.h \
    hbwinuni.h \
+   hbzlib.h \
    hbznet.h \
    hb_io.h \
 
@@ -116,6 +116,7 @@ PRG_HEADERS := \
    hbhash.ch \
    hbhrb.ch \
    hbinkey.ch \
+   hbiousr.ch \
    hblang.ch \
    hblpp.ch \
    hbmacro.ch \
@@ -124,6 +125,7 @@ PRG_HEADERS := \
    hbmemvar.ch \
    hboo.ch \
    hbpers.ch \
+   hbserial.ch \
    hbsetup.ch \
    hbsix.ch \
    hbsocket.ch \

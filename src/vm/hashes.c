@@ -88,16 +88,33 @@ static HB_GARBAGE_FUNC( hb_hashGarbageRelease )
 
    if( pBaseHash->nSize > 0 )
    {
-      PHB_HASHPAIR pPairs = pBaseHash->pPairs;
-      HB_SIZE nLen = pBaseHash->nLen;
+      while( pBaseHash->nLen )
+      {
+         PHB_ITEM pKey, pVal;
 
-      /*
-       * clear the pBaseHash->pPairs to avoid infinite loop in cross
-       * referenced items when pBaseArray is not freed due to buggy
-       * object destructor [druzus]
-       */
-      pBaseHash->pPairs = NULL;
-      pBaseHash->nLen  = 0;
+         pBaseHash->nLen--;
+         pKey = &pBaseHash->pPairs[ pBaseHash->nLen ].key;
+         pVal = &pBaseHash->pPairs[ pBaseHash->nLen ].value;
+
+         /* small hack for buggy destructors in hash items */
+         pBaseHash->iFlags |= HB_HASH_RESORT;
+
+         if( HB_IS_GCITEM( pKey ) && HB_IS_GCITEM( pVal ) )
+         {
+            HB_STACK_TLS_PRELOAD
+
+            hb_itemRawMove( hb_stackAllocItem(), pVal );
+            hb_itemClear( pKey );
+            hb_stackPop();
+         }
+         else
+         {
+            if( HB_IS_COMPLEX( pKey ) )
+               hb_itemClear( pKey );
+            if( HB_IS_COMPLEX( pVal ) )
+               hb_itemClear( pVal );
+         }
+      }
 
       if( pBaseHash->pnPos )
       {
@@ -105,15 +122,13 @@ static HB_GARBAGE_FUNC( hb_hashGarbageRelease )
          pBaseHash->pnPos = NULL;
       }
 
-      while( nLen-- )
+      if( pBaseHash->pPairs )
       {
-         if( HB_IS_COMPLEX( &pPairs[ nLen ].key ) )
-            hb_itemClear( &pPairs[ nLen ].key );
-         if( HB_IS_COMPLEX( &pPairs[ nLen ].value ) )
-            hb_itemClear( &pPairs[ nLen ].value );
+         hb_xfree( pBaseHash->pPairs );
+         pBaseHash->pPairs = NULL;
       }
-      hb_xfree( pPairs );
    }
+
    if( pBaseHash->pDefault )
    {
       PHB_ITEM pDefault = pBaseHash->pDefault;
@@ -177,7 +192,7 @@ static int hb_hashItemCmp( PHB_ITEM pKey1, PHB_ITEM pKey2, int iFlags )
          return pKey1->item.asDateTime.julian < pKey2->item.asDateTime.julian ? -1 :
               ( pKey1->item.asDateTime.julian > pKey2->item.asDateTime.julian ? 1 :
               ( pKey1->item.asDateTime.time < pKey2->item.asDateTime.time ? -1 :
-              ( pKey1->item.asDateTime.time < pKey2->item.asDateTime.time ? 1 : 0 ) ) );
+              ( pKey1->item.asDateTime.time > pKey2->item.asDateTime.time ? 1 : 0 ) ) );
       else if( HB_IS_STRING( pKey2 ) )
          return -1;
       else
@@ -209,31 +224,63 @@ static int hb_hashItemCmp( PHB_ITEM pKey1, PHB_ITEM pKey2, int iFlags )
 
 static void hb_hashResort( PHB_BASEHASH pBaseHash )
 {
+   HB_SIZE nPos;
+   PHB_HASHPAIR pPairs = ( PHB_HASHPAIR )
+                           hb_xgrab( pBaseHash->nLen * sizeof( HB_HASHPAIR ) );
+   for( nPos = 0; nPos < pBaseHash->nLen; ++nPos )
+   {
+      memcpy( pPairs + nPos, pBaseHash->pPairs + pBaseHash->pnPos[ nPos ], sizeof( HB_HASHPAIR ) );
+      pBaseHash->pnPos[ nPos ] = nPos;
+   }
+
+   hb_xfree( pBaseHash->pPairs );
+   pBaseHash->pPairs = pPairs;
+   pBaseHash->nSize = pBaseHash->nLen;
+   pBaseHash->pnPos = ( HB_SIZE * )
+         hb_xrealloc( pBaseHash->pnPos, pBaseHash->nSize * sizeof( HB_SIZE ) );
+}
+
+static void hb_hashSortDo( PHB_BASEHASH pBaseHash )
+{
    HB_SIZE nPos, nFrom;
    int iFlags = pBaseHash->iFlags;
 
-   /* The hash array is probably quite well sorted so this trivial
-    * algorithm is the most efficient one [druzus]
-    */
-
    if( pBaseHash->pnPos )
    {
+      HB_SIZE * pnPos = pBaseHash->pnPos;
+
+      pnPos[ 0 ] = 0;
       for( nFrom = 1; nFrom < pBaseHash->nLen; ++nFrom )
       {
-         nPos = nFrom;
-         while( nPos > 0 && hb_hashItemCmp( &pBaseHash->pPairs[ pBaseHash->pnPos[ nPos - 1 ] ].key,
-                                            &pBaseHash->pPairs[ pBaseHash->pnPos[ nPos ] ].key,
-                                            iFlags ) > 0 )
+         PHB_ITEM pKey = &pBaseHash->pPairs[ nFrom ].key;
+         HB_SIZE nLeft = 0, nRight = nFrom;
+
+         while( nLeft < nRight )
          {
-            HB_SIZE nTemp = pBaseHash->pnPos[ nPos - 1 ];
-            pBaseHash->pnPos[ nPos - 1 ] = pBaseHash->pnPos[ nPos ];
-            pBaseHash->pnPos[ nPos ] = nTemp;
-            --nPos;
+            HB_SIZE nMiddle = ( nLeft + nRight ) >> 1;
+            int i = hb_hashItemCmp( &pBaseHash->pPairs[ pnPos[ nMiddle ] ].key,
+                                    pKey, iFlags );
+            if( i > 0 )
+               nRight = nMiddle;
+            else
+               nLeft = nMiddle + 1;
          }
+         if( nLeft < nFrom )
+         {
+            nRight = nFrom;
+            do
+               pnPos[ nRight ] = pnPos[ nRight - 1 ];
+            while( --nRight > nLeft );
+         }
+         pnPos[ nLeft ] = nFrom;
       }
    }
    else
    {
+      /* The hash array is probably quite well sorted so this trivial
+       * algorithm is the most efficient one [druzus]
+       */
+
       for( nFrom = 1; nFrom < pBaseHash->nLen; ++nFrom )
       {
          nPos = nFrom;
@@ -260,7 +307,7 @@ static HB_BOOL hb_hashFind( PHB_BASEHASH pBaseHash, PHB_ITEM pKey, HB_SIZE * pnP
    int i;
 
    if( iFlags & HB_HASH_RESORT )
-      hb_hashResort( pBaseHash );
+      hb_hashSortDo( pBaseHash );
 
    nLeft = 0;
    nRight = pBaseHash->nLen;
@@ -361,8 +408,9 @@ static PHB_ITEM hb_hashValuePtr( PHB_BASEHASH pBaseHash, PHB_ITEM pKey, HB_BOOL 
          pBaseHash->pPairs[ nPos ].key.type = HB_IT_NIL;
          pBaseHash->pPairs[ nPos ].value.type = HB_IT_NIL;
       }
-      hb_itemCopy( &pBaseHash->pPairs[ nPos ].key, pKey );
+
       pBaseHash->nLen++;
+      hb_itemCopy( &pBaseHash->pPairs[ nPos ].key, pKey );
       if( pBaseHash->pDefault )
          hb_itemCloneTo( &pBaseHash->pPairs[ nPos ].value, pBaseHash->pDefault );
    }
@@ -393,9 +441,9 @@ static HB_BOOL hb_hashNewValue( PHB_BASEHASH pBaseHash, PHB_ITEM pKey, PHB_ITEM 
          pBaseHash->pPairs[ nPos ].value.type = HB_IT_NIL;
       }
 
+      pBaseHash->nLen++;
       hb_itemCopy( &pBaseHash->pPairs[ nPos ].key, pKey );
       hb_itemCopyFromRef( &pBaseHash->pPairs[ nPos ].value, pValue );
-      pBaseHash->nLen++;
 
       return HB_TRUE;
    }
@@ -437,7 +485,7 @@ static void hb_hashDelPair( PHB_BASEHASH pBaseHash, HB_SIZE nPos )
    }
    else
    {
-      if( pBaseHash->pnPos )
+      if( pBaseHash->pnPos && ( pBaseHash->iFlags & HB_HASH_RESORT ) == 0 )
       {
 #ifdef HB_FAST_HASH_DEL
          HB_SIZE * pnPos, * pnDel, * pnLast;
@@ -575,8 +623,13 @@ void hb_hashSort( PHB_ITEM pHash )
 
    if( HB_IS_HASH( pHash ) )
    {
-      if( pHash->item.asHash.value->iFlags & HB_HASH_RESORT )
-         hb_hashResort( pHash->item.asHash.value );
+      PHB_BASEHASH pBaseHash = pHash->item.asHash.value;
+
+      if( pBaseHash->iFlags & HB_HASH_RESORT )
+         hb_hashSortDo( pBaseHash );
+
+      if( pBaseHash->pnPos )
+         hb_hashResort( pBaseHash );
    }
 }
 
@@ -1131,7 +1184,7 @@ void hb_hashSetFlags( PHB_ITEM pHash, int iFlags )
          HB_SIZE n = pHash->item.asHash.value->nSize;
 
          pHash->item.asHash.value->pnPos = ( HB_SIZE * )
-            hb_xgrab( pHash->item.asHash.value->nSize * sizeof( HB_SIZE ) );
+                                             hb_xgrab( n * sizeof( HB_SIZE ) );
          do
          {
             --n;
@@ -1152,10 +1205,9 @@ void hb_hashClearFlags( PHB_ITEM pHash, int iFlags )
       if( pHash->item.asHash.value->pnPos != NULL &&
           ( pHash->item.asHash.value->iFlags & HB_HASH_KEEPORDER ) == 0 )
       {
+         hb_hashResort( pHash->item.asHash.value );
          hb_xfree( pHash->item.asHash.value->pnPos );
          pHash->item.asHash.value->pnPos = NULL;
-         if( pHash->item.asHash.value->nSize )
-            pHash->item.asHash.value->iFlags |= HB_HASH_RESORT;
       }
    }
 }

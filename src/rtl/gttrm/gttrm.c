@@ -1507,20 +1507,40 @@ static void hb_gt_trm_LinuxSetCursorStyle( PHB_GTTRM pTerm, int iStyle )
    }
 }
 
-static void hb_gt_trm_LinuxSetPalette( PHB_GTTRM pTerm, int iIndex )
+static void hb_gt_trm_LinuxSetPalette( PHB_GTTRM pTerm, int iIndexFrom, int iIndexTo )
 {
-   HB_TRACE( HB_TR_DEBUG, ( "hb_gt_trm_LinuxSetPalette(%p,%d)", pTerm, iIndex ) );
+   HB_TRACE( HB_TR_DEBUG, ( "hb_gt_trm_LinuxSetPalette(%p,%d,%d)", pTerm, iIndexFrom, iIndexTo ) );
 
-   if( iIndex >= 0 && iIndex <= 15 )
+   if( iIndexFrom < 0 )
+      iIndexFrom = 0;
+   if( iIndexTo > 15 )
+      iIndexTo = 15;
+
+   if( iIndexFrom <= iIndexTo )
    {
-      char szColor[ 11 ];
-      int iAnsiIndex = s_AnsiColors[ iIndex & 0x07 ] | ( iIndex & 0x08 );
-      hb_snprintf( szColor, sizeof( szColor ), "\033]P%X%02X%02X%02X",
-                   iAnsiIndex,
-                   ( pTerm->colors[ iIndex ] ) & 0xff,
-                   ( pTerm->colors[ iIndex ] >> 8 ) & 0xff,
-                   ( pTerm->colors[ iIndex ] >> 16 ) & 0xff );
-      hb_gt_trm_termOut( pTerm, szColor, 10 );
+      do
+      {
+         char szColor[ 11 ];
+         int iAnsiIndex = s_AnsiColors[ iIndexFrom & 0x07 ] | ( iIndexFrom & 0x08 );
+
+         hb_snprintf( szColor, sizeof( szColor ), "\033]P%X%02X%02X%02X",
+                      iAnsiIndex,
+                      ( pTerm->colors[ iIndexFrom ] ) & 0xff,
+                      ( pTerm->colors[ iIndexFrom ] >> 8 ) & 0xff,
+                      ( pTerm->colors[ iIndexFrom ] >> 16 ) & 0xff );
+         hb_gt_trm_termOut( pTerm, szColor, 10 );
+      }
+      while( ++iIndexFrom <= iIndexTo );
+
+      /* ESC ] is Operating System Command (OSC) which by default should
+       * be terminated by ESC \ (ST). Some terminals which sets LINUX
+       * TERM envvar but do not correctly understand above palette set
+       * sequence may hang waiting for ST. We send ST below to avoid such
+       * situation.
+       * Linux console simply ignore ST terminator so nothing wrong
+       * should happen.
+       */
+      hb_gt_trm_termOut( pTerm, "\033\\", 2 );
    }
 }
 
@@ -2109,23 +2129,52 @@ static void hb_gt_trm_AnsiExit( PHB_GTTRM pTerm )
 /*
  * common functions
  */
+static HB_BOOL hb_trm_Param( const char * pszParam )
+{
+   HB_BOOL fResult = HB_FALSE;
+   char * pszGtTrmParams = hb_cmdargString( "GTTRM" );
+
+   if( pszGtTrmParams )
+   {
+      fResult = strstr( hb_strupr( pszGtTrmParams ), pszParam ) != NULL;
+      hb_xfree( pszGtTrmParams );
+   }
+
+   return fResult;
+}
+
 static HB_BOOL hb_trm_isUTF8( PHB_GTTRM pTerm )
 {
+   HB_BOOL fUTF8 = HB_FALSE;
    char * szLang;
 
    if( pTerm->fPosAnswer )
    {
-      int iRow = 0, iCol = 0;
-      HB_BOOL fSize;
-
       hb_gt_trm_termOut( pTerm, "\005\r\303\255", 4 );
-      fSize = pTerm->GetCursorPos( pTerm, &iRow, &iCol, "\r   \r" );
-      pTerm->iCol = 0;
-      if( fSize )
-         return iCol == 1;
+      if( pTerm->GetCursorPos( pTerm, &pTerm->iRow, &pTerm->iCol, "\r   \r" ) )
+      {
+         fUTF8 = pTerm->iCol == 1;
+         pTerm->iCol = 0;
+      }
    }
+
+   if( hb_trm_Param( "UTF8" ) || hb_trm_Param( "UTF-8" ) )
+      return HB_TRUE;
+   else if( hb_trm_Param( "ISO" ) )
+      return HB_FALSE;
+   else if( pTerm->fPosAnswer )
+      return fUTF8;
+
    szLang = getenv( "LANG" );
-   return szLang && strstr( szLang, "UTF-8" ) != NULL;
+   if( szLang && strstr( szLang, "UTF-8" ) != NULL )
+      return HB_TRUE;
+
+#ifdef IUTF8
+   if( ( pTerm->curr_TIO.c_iflag & IUTF8 ) != 0 )
+      return HB_TRUE;
+#endif
+
+   return HB_FALSE;
 }
 
 static void hb_gt_trm_PutStr( PHB_GTTRM pTerm, int iRow, int iCol, int iAttr, const char * pStr, int iLen, int iChars )
@@ -2146,14 +2195,14 @@ static void hb_gt_trm_PutStr( PHB_GTTRM pTerm, int iRow, int iCol, int iAttr, co
    pTerm->iCol += iChars;
 }
 
-static void hb_gt_trm_SetPalette( PHB_GTTRM pTerm, int iIndex )
+static void hb_gt_trm_SetPalette( PHB_GTTRM pTerm, int iIndexFrom, int iIndexTo )
 {
-   HB_TRACE( HB_TR_DEBUG, ( "hb_gt_trm_SetPalette(%p,%d)", pTerm, iIndex ) );
+   HB_TRACE( HB_TR_DEBUG, ( "hb_gt_trm_SetPalette(%p,%d,%d)", pTerm, iIndexFrom, iIndexTo ) );
 
    if( pTerm->terminal_type == TERM_LINUX ||
        ( pTerm->terminal_ext & TERM_PUTTY ) )
    {
-      hb_gt_trm_LinuxSetPalette( pTerm, iIndex );
+      hb_gt_trm_LinuxSetPalette( pTerm, iIndexFrom, iIndexTo );
    }
 }
 
@@ -2905,6 +2954,8 @@ static void hb_gt_trm_SetTerm( PHB_GTTRM pTerm )
    pTerm->iAttrMask     = ~HB_GTTRM_ATTR_BOX;
    pTerm->terminal_ext  = 0;
    pTerm->fAM           = HB_FALSE;
+   if( hb_trm_Param( "PUTTY" ) )
+      pTerm->terminal_ext |= TERM_PUTTY;
 
    szTerm = getenv( "HB_TERM" );
    if( szTerm == NULL || *szTerm == '\0' )
@@ -2919,7 +2970,8 @@ static void hb_gt_trm_SetTerm( PHB_GTTRM pTerm )
        strstr( szTerm, "xterm" ) != NULL ||
        strncmp( szTerm, "rxvt", 4 ) == 0 ||
        strcmp( szTerm, "putty" ) == 0 ||
-       strncmp( szTerm, "screen", 6 ) == 0 )
+       strncmp( szTerm, "screen", 6 ) == 0 ||
+       hb_trm_Param( "XTERM" ) )
    {
       pTerm->Init           = hb_gt_trm_AnsiInit;
       pTerm->Exit           = hb_gt_trm_AnsiExit;
@@ -2937,7 +2989,8 @@ static void hb_gt_trm_SetTerm( PHB_GTTRM pTerm )
    }
    else if( strncmp( szTerm, "linux", 5 ) == 0 ||
             strcmp( szTerm, "tterm" ) == 0 ||
-            strcmp( szTerm, "teraterm" ) == 0 )
+            strcmp( szTerm, "teraterm" ) == 0 ||
+            hb_trm_Param( "LINUX" ) )
    {
       pTerm->Init           = hb_gt_trm_AnsiInit;
       pTerm->Exit           = hb_gt_trm_AnsiExit;
@@ -2953,7 +3006,8 @@ static void hb_gt_trm_SetTerm( PHB_GTTRM pTerm )
       pTerm->szAcsc         = szExtAcsc;
       pTerm->terminal_type  = TERM_LINUX;
    }
-   else if( strncmp( szTerm, "cons", 4 ) == 0 )
+   else if( strncmp( szTerm, "cons", 4 ) == 0 ||
+            hb_trm_Param( "CONS" ) )
    {
       pTerm->Init           = hb_gt_trm_AnsiInit;
       pTerm->Exit           = hb_gt_trm_AnsiExit;
@@ -2997,7 +3051,7 @@ static void hb_gt_trm_SetTerm( PHB_GTTRM pTerm )
       pTerm->hFileno     = pTerm->hFilenoStdin;
       pTerm->fOutTTY     = HB_TRUE;
    }
-   pTerm->fPosAnswer     = pTerm->fOutTTY;
+   pTerm->fPosAnswer     = pTerm->fOutTTY && ! hb_trm_Param( "NOPOS" );
    pTerm->fUTF8          = HB_FALSE;
 
    hb_fsSetDevMode( pTerm->hFileno, FD_BINARY );
@@ -3086,13 +3140,20 @@ static void hb_gt_trm_Init( PHB_GT pGT, HB_FHANDLE hFilenoStdin, HB_FHANDLE hFil
    HB_GTSUPER_INIT( pGT, hFilenoStdin, hFilenoStdout, hFilenoStderr );
    HB_GTSELF_RESIZE( pGT, iRows, iCols );
    HB_GTSELF_SETFLAG( pGT, HB_GTI_COMPATBUFFER, HB_FALSE );
+   HB_GTSELF_SETFLAG( pGT, HB_GTI_REDRAWMAX, 8 );
    HB_GTSELF_SETFLAG( pGT, HB_GTI_STDOUTCON, pTerm->fStdoutTTY );
    HB_GTSELF_SETFLAG( pGT, HB_GTI_STDERRCON, pTerm->fStderrTTY && pTerm->fOutTTY );
    pTerm->Init( pTerm );
    pTerm->SetTermMode( pTerm, 0 );
+#ifdef HB_GTTRM_CHK_EXACT_POS
    if( pTerm->GetCursorPos( pTerm, &pTerm->iRow, &pTerm->iCol, NULL ) )
       HB_GTSELF_SETPOS( pGT, pTerm->iRow, pTerm->iCol );
    pTerm->fUTF8 = hb_trm_isUTF8( pTerm );
+#else
+   pTerm->fUTF8 = hb_trm_isUTF8( pTerm );
+   if( pTerm->fPosAnswer )
+      HB_GTSELF_SETPOS( pGT, pTerm->iRow, pTerm->iCol );
+#endif
    if( ! pTerm->fUTF8 )
    {
 #ifndef HB_GT_UNICODE_BUF
@@ -3372,15 +3433,16 @@ static void hb_gt_trm_Scroll( PHB_GT pGT, int iTop, int iLeft, int iBottom, int 
 
 static HB_BOOL hb_gt_trm_SetMode( PHB_GT pGT, int iRows, int iCols )
 {
-   PHB_GTTRM pTerm;
-
    HB_TRACE( HB_TR_DEBUG, ( "hb_gt_trm_SetMode(%p,%d,%d)", pGT, iRows, iCols ) );
 
-   pTerm = HB_GTTRM_GET( pGT );
-   if( pTerm->SetMode( pTerm, &iRows, &iCols ) )
+   if( iRows > 0 && iCols > 0 )
    {
-      HB_GTSELF_RESIZE( pGT, iRows, iCols );
-      return HB_TRUE;
+      PHB_GTTRM pTerm = HB_GTTRM_GET( pGT );
+      if( pTerm->SetMode( pTerm, &iRows, &iCols ) )
+      {
+         HB_GTSELF_RESIZE( pGT, iRows, iCols );
+         return HB_TRUE;
+      }
    }
    return HB_FALSE;
 }
@@ -3683,7 +3745,7 @@ static HB_BOOL hb_gt_trm_Info( PHB_GT pGT, int iType, PHB_GT_INFO pInfo )
                if( hb_itemType( pInfo->pNewVal2 ) & HB_IT_NUMERIC )
                {
                   pTerm->colors[ iVal ] = hb_itemGetNI( pInfo->pNewVal2 );
-                  hb_gt_trm_SetPalette( pTerm, iVal );
+                  hb_gt_trm_SetPalette( pTerm, iVal, iVal );
                   hb_gt_trm_termFlush( pTerm );
                }
             }
@@ -3699,10 +3761,8 @@ static HB_BOOL hb_gt_trm_Info( PHB_GT pGT, int iType, PHB_GT_INFO pInfo )
                 hb_arrayLen( pInfo->pNewVal ) == 16 )
             {
                for( iVal = 0; iVal < 16; iVal++ )
-               {
                   pTerm->colors[ iVal ] = hb_arrayGetNI( pInfo->pNewVal, iVal + 1 );
-                  hb_gt_trm_SetPalette( pTerm, iVal );
-               }
+               hb_gt_trm_SetPalette( pTerm, 0, 15 );
                hb_gt_trm_termFlush( pTerm );
             }
          }

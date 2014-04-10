@@ -3,7 +3,7 @@
  * hb_FTempCreate() function
  *
  * Copyright 2000-2001 Jose Lalin <dezac@corevia.com>
- * Copyright 2000-2010 Viktor Szakats (harbour syenar.net)
+ * Copyright 2000-2010 Viktor Szakats (vszakats.net/harbour)
  * www - http://harbour-project.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -286,7 +286,7 @@ static HB_BOOL hb_fsTempName( char * pszBuffer, const char * pszDir, const char 
    }
 #else
    {
-      char * pTmpBuffer = hb_xgrab( L_tmpnam + 1 );
+      char * pTmpBuffer = ( char * ) hb_xgrab( L_tmpnam + 1 );
 
       /* TODO: Implement these: */
       HB_SYMBOL_UNUSED( pszDir );

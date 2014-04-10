@@ -2,7 +2,7 @@
  * Harbour Project source code:
  * POPUP menu class (Harbour extended)
  *
- * Copyright 2011 Viktor Szakats (harbour syenar.net)
+ * Copyright 2011 Viktor Szakats (vszakats.net/harbour)
  * Copyright 2000 Jose Lalin <dezac@corevia.com>
  * www - http://harbour-project.org
  *
@@ -132,9 +132,10 @@ METHOD isShortCut( nKey, nID ) CLASS hb_PopupMenu
    DO CASE
    // Test and assign top menu item shortCut, enabled, and ! PopUp:
    // Changed by enclosing assignment before ':Enabled':
-   CASE ( ( nShortCut := ::getShortCt( nKey ) ) > 0 ) .AND. ;
-          ( ( oItem := ::getItem( nShortcut ) ):enabled ) .AND. ;
-          ( !( oItem:isPopUp() ) )
+   CASE ( nShortCut := ::getShortCt( nKey ) ) > 0 .AND. ;
+        ( oItem := ::getItem( nShortcut ) ):enabled .AND. ;
+        ! oItem:isPopUp()
+
       ::select( nShortCut )
       Eval( oItem:data, oItem )
       nID := oItem:id

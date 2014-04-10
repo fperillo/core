@@ -75,7 +75,7 @@
 typedef struct
 {
    char *        szName;                        /* Name of the function     */
-   PHB_PCODEFUNC pCodeFunc;                     /* Dynamic function info    */
+   HB_PCODEFUNC  pcodeFunc;                     /* Dynamic function info    */
    HB_BYTE *     pCode;                         /* P-code                   */
 } HB_DYNF, * PHB_DYNF;
 
@@ -299,17 +299,15 @@ static void hb_hrbUnLoad( PHRB_BODY pHrbBody )
          PHB_DYNS pDyn;
 
          if( pHrbBody->pDynFunc[ ul ].szName &&
-             pHrbBody->pDynFunc[ ul ].pCodeFunc )
+             pHrbBody->pDynFunc[ ul ].pcodeFunc.pCode )
          {
             pDyn = hb_dynsymFind( pHrbBody->pDynFunc[ ul ].szName );
             if( pDyn && pDyn->pSymbol->value.pCodeFunc ==
-                        pHrbBody->pDynFunc[ ul ].pCodeFunc )
+                        &pHrbBody->pDynFunc[ ul ].pcodeFunc )
             {
                pDyn->pSymbol->value.pCodeFunc = NULL;
             }
          }
-         if( pHrbBody->pDynFunc[ ul ].pCodeFunc )
-            hb_xfree( pHrbBody->pDynFunc[ ul ].pCodeFunc );
          if( pHrbBody->pDynFunc[ ul ].pCode )
             hb_xfree( pHrbBody->pDynFunc[ ul ].pCode );
          if( pHrbBody->pDynFunc[ ul ].szName )
@@ -452,9 +450,8 @@ static PHRB_BODY hb_hrbLoad( const char * szHrbBody, HB_SIZE nBodySize, HB_USHOR
             memcpy( ( char * ) pDynFunc[ ul ].pCode, szHrbBody + nBodyOffset, nSize );
             nBodyOffset += nSize;
 
-            pDynFunc[ ul ].pCodeFunc = ( PHB_PCODEFUNC ) hb_xgrab( sizeof( HB_PCODEFUNC ) );
-            pDynFunc[ ul ].pCodeFunc->pCode    = pDynFunc[ ul ].pCode;
-            pDynFunc[ ul ].pCodeFunc->pSymbols = pSymRead;
+            pDynFunc[ ul ].pcodeFunc.pCode    = pDynFunc[ ul ].pCode;
+            pDynFunc[ ul ].pcodeFunc.pSymbols = pSymRead;
          }
 
          if( ul < pHrbBody->ulFuncs )
@@ -479,7 +476,7 @@ static PHRB_BODY hb_hrbLoad( const char * szHrbBody, HB_SIZE nBodySize, HB_USHOR
             }
             else
             {
-               pSymRead[ ul ].value.pCodeFunc = ( PHB_PCODEFUNC ) pHrbBody->pDynFunc[ nPos ].pCodeFunc;
+               pSymRead[ ul ].value.pCodeFunc = &pHrbBody->pDynFunc[ nPos ].pcodeFunc;
                pSymRead[ ul ].scope.value |= HB_FS_PCODEFUNC | HB_FS_LOCAL |
                   ( usBind == HB_HRB_BIND_FORCELOCAL ? HB_FS_STATIC : 0 );
             }
@@ -525,7 +522,7 @@ static PHRB_BODY hb_hrbLoad( const char * szHrbBody, HB_SIZE nBodySize, HB_USHOR
 
       if( hb_vmLockModuleSymbols() )
       {
-         if( usBind == HB_HRB_BIND_LOCAL || usBind == HB_HRB_BIND_OVERLOAD )
+         if( usBind == HB_HRB_BIND_LOCAL )
          {
             for( ul = 0; ul < pHrbBody->ulSymbols; ul++ )
             {
@@ -535,24 +532,17 @@ static PHRB_BODY hb_hrbLoad( const char * szHrbBody, HB_SIZE nBodySize, HB_USHOR
                   pDynSym = hb_dynsymFind( pSymRead[ ul ].szName );
                   if( pDynSym )
                   {
-                     if( usBind == HB_HRB_BIND_LOCAL )
-                     {
-                        /* convert public function to static one */
-                        pSymRead[ ul ].scope.value |= HB_FS_STATIC;
-                     }
-                     else
-                     {
-                        /* overload existing public function */
-                        pDynSym->pSymbol = &pSymRead[ ul ];
-                        hb_vmSetDynFunc( pDynSym );
-                     }
+                     /* convert public function to static one */
+                     pSymRead[ ul ].scope.value |= HB_FS_STATIC;
                   }
                }
             }
          }
 
          pHrbBody->pModuleSymbols = hb_vmRegisterSymbols( pHrbBody->pSymRead,
-                  ( HB_USHORT ) pHrbBody->ulSymbols, szFileName ? szFileName : "pcode.hrb", 0, HB_TRUE, HB_FALSE );
+                        ( HB_USHORT ) pHrbBody->ulSymbols,
+                        szFileName ? szFileName : "pcode.hrb", 0,
+                        HB_TRUE, HB_FALSE, usBind == HB_HRB_BIND_OVERLOAD );
 
          if( pHrbBody->pModuleSymbols->pModuleSymbols != pSymRead )
          {
@@ -563,7 +553,8 @@ static PHRB_BODY hb_hrbLoad( const char * szHrbBody, HB_SIZE nBodySize, HB_USHOR
             pHrbBody->pSymRead = pHrbBody->pModuleSymbols->pModuleSymbols;
             hb_xfree( pSymRead );
 
-            pHrbBody->fInit = HB_TRUE;
+            if( ! pHrbBody->pModuleSymbols->fInitStatics )
+               pHrbBody->fInit = HB_TRUE;
          }
          else
          {
@@ -588,49 +579,44 @@ static PHRB_BODY hb_hrbLoad( const char * szHrbBody, HB_SIZE nBodySize, HB_USHOR
 
 static PHRB_BODY hb_hrbLoadFromFile( const char * szHrb, HB_USHORT usMode )
 {
-   char szFileName[ HB_PATH_MAX ];
    PHRB_BODY pHrbBody = NULL;
-   PHB_FNAME pFileName;
-   HB_FHANDLE hFile;
-
-   /* Create full filename */
-
-   pFileName = hb_fsFNameSplit( szHrb );
-   if( pFileName->szExtension == NULL && hb_stackSetStruct()->HB_SET_DEFEXTENSIONS )
-   {
-      pFileName->szExtension = ".hrb";
-   }
-   hb_fsFNameMerge( szFileName, pFileName );
-   hb_xfree( pFileName );
+   PHB_ITEM pError = NULL;
+   PHB_FILE pFile;
 
    /* Open as binary */
-
    do
    {
-      hFile = hb_fsOpen( szFileName, FO_READ );
+      pFile = hb_fileExtOpen( szHrb,
+                              hb_stackSetStruct()->HB_SET_DEFEXTENSIONS ? ".hrb" : NULL,
+                              FO_READ | FXO_SHARELOCK, NULL, pError );
+      if( pFile == NULL )
+      {
+         pError = hb_errRT_FileError( pError, NULL, EG_OPEN, 6102, szHrb );
+         if( hb_errLaunch( pError ) != E_RETRY )
+            break;
+      }
    }
-   while( hFile == FS_ERROR &&
-          hb_errRT_BASE_Ext1( EG_OPEN, 6102, NULL, szFileName, hb_fsError(),
-                              EF_CANDEFAULT | EF_CANRETRY,
-                              HB_ERR_ARGS_BASEPARAMS ) == E_RETRY );
+   while( pFile == NULL );
 
-   if( hFile != FS_ERROR )
+   if( pError )
+      hb_itemRelease( pError );
+
+   if( pFile != NULL )
    {
-      HB_SIZE nBodySize = hb_fsSeek( hFile, 0, FS_END );
+      HB_SIZE nBodySize = ( HB_SIZE ) hb_fileSize( pFile );
 
       if( nBodySize )
       {
          char * pbyBuffer;
 
          pbyBuffer = ( char * ) hb_xgrab( nBodySize + sizeof( char ) + 1 );
-         hb_fsSeek( hFile, 0, FS_SET );
-         hb_fsReadLarge( hFile, pbyBuffer, nBodySize );
+         hb_fileReadAt( pFile, pbyBuffer, nBodySize, 0 );
          pbyBuffer[ nBodySize ] = '\0';
 
-         pHrbBody = hb_hrbLoad( ( const char * ) pbyBuffer, nBodySize, usMode, szFileName );
+         pHrbBody = hb_hrbLoad( ( const char * ) pbyBuffer, nBodySize, usMode, szHrb );
          hb_xfree( pbyBuffer );
       }
-      hb_fsClose( hFile );
+      hb_fileClose( pFile );
    }
 
    return pHrbBody;

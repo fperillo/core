@@ -1,4 +1,3 @@
-
 ROOT := ../../
 
 include $(TOP)$(ROOT)config/global.mk
@@ -49,6 +48,7 @@ C_SOURCES := \
    errintlo.c \
    file.c \
    filebuf.c \
+   filebufd.c \
    filehb.c \
    filesys.c \
    fkmax.c \
@@ -114,11 +114,13 @@ C_SOURCES := \
    hbstrsh.c \
    hbtoken.c \
    hbzlib.c \
+   hbzlibc.c \
    hbzlibgz.c \
    hbznet.c \
    idle.c \
    inkey.c \
    inkeyapi.c \
+   iousr.c \
    is.c \
    isprint.c \
    itemseri.c \
@@ -206,6 +208,7 @@ C_SOURCES := \
    valtostr.c \
    valtype.c \
    version.c \
+   vfile.c \
    word.c \
    xhelp.c \
    xsavescr.c \
@@ -243,7 +246,6 @@ PRG_SOURCES := \
    libname.prg \
    listbox.prg \
    memoedit.prg \
-   memvarbl.prg \
    memvarhb.prg \
    menuto.prg \
    menusys.prg \

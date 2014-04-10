@@ -163,7 +163,7 @@ static void s_signalHandler( int sig, siginfo_t * info, void * v )
    #endif
 
    /* let's find the right signal handler. */
-   hb_threadEnterCriticalSection( &s_ServiceMutex );
+   hb_threadEnterCriticalSectionGC( &s_ServiceMutex );
 
    /* avoid working if PRG signal handling has been disabled */
    if( ! bSignalEnabled )
@@ -417,7 +417,7 @@ static LONG s_signalHandler( int type, int sig, PEXCEPTION_RECORD exc )
    int      iRet;
 
    /* let's find the right signal handler. */
-   hb_threadEnterCriticalSection( &s_ServiceMutex );
+   hb_threadEnterCriticalSectionGC( &s_ServiceMutex );
 
    /* avoid working if PRG signal handling has been disabled */
    if( ! bSignalEnabled )
@@ -885,7 +885,7 @@ HB_FUNC( HB_PUSHSIGNALHANDLER )
       s_signalHandlersInit();
    }
 
-   hb_threadEnterCriticalSection( &s_ServiceMutex );
+   hb_threadEnterCriticalSectionGC( &s_ServiceMutex );
 
    hb_arrayAddForward( sp_hooks, pHandEntry );
 
@@ -901,7 +901,7 @@ HB_FUNC( HB_POPSIGNALHANDLER )
 
    if( sp_hooks != NULL )
    {
-      hb_threadEnterCriticalSection( &s_ServiceMutex );
+      hb_threadEnterCriticalSectionGC( &s_ServiceMutex );
 
       nLen = hb_arrayLen( sp_hooks );
       if( nLen > 0 )
@@ -935,11 +935,10 @@ HB_FUNC( HB_POPSIGNALHANDLER )
  */
 HB_FUNC( HB_SIGNALDESC )
 {
+#if defined( HB_OS_UNIX ) || defined( HB_OS_OS2_GCC )
+
    int iSig    = hb_parni( 1 );
    int iSubSig = hb_parni( 2 );
-
-   /* UNIX MESSGES */
-   #if defined( HB_OS_UNIX ) || defined( HB_OS_OS2_GCC )
 
    switch( iSig )
    {
@@ -1019,12 +1018,16 @@ HB_FUNC( HB_SIGNALDESC )
          hb_retc_const( "User defined (secondary)" );
          return;
    }
-   #endif
 
-   #ifdef HB_OS_WIN
+#elif defined( HB_OS_WIN )
+
+   int iSig    = hb_parni( 1 );
+
    if( iSig == 0 ) /* exception */
    {
-      switch( iSubSig )
+      DWORD dwSubSig = ( DWORD ) hb_parnl( 2 );
+
+      switch( dwSubSig )
       {
          case EXCEPTION_ACCESS_VIOLATION:
             hb_retc_const( "Memory read/write access violation" ); return;
@@ -1076,7 +1079,7 @@ HB_FUNC( HB_SIGNALDESC )
       }
    }
 
-   #endif
+#endif
 
    hb_retc_const( "Unrecognized signal" );
 }

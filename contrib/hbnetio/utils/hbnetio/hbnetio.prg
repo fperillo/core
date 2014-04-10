@@ -2,7 +2,7 @@
  * Harbour Project source code:
  * Harbour NETIO server daemon
  *
- * Copyright 2010-2012 Viktor Szakats (harbour syenar.net)
+ * Copyright 2010-2012 Viktor Szakats (vszakats.net/harbour)
  * Copyright 2009 Przemyslaw Czerpak <druzus / at / priv.onet.pl>
  * www - http://harbour-project.org
  *
@@ -121,10 +121,6 @@ PROCEDURE netiosrv_Main( lUI, ... )
    netiosrv[ _NETIOSRV_hBlock ]         := { => }
    netiosrv[ _NETIOSRV_mtxFilters ]     := hb_mutexCreate()
 
-   hb_HKeepOrder( netiosrv[ _NETIOSRV_hConnection ], .T. )
-   hb_HKeepOrder( netiosrv[ _NETIOSRV_hAllow ], .T. )
-   hb_HKeepOrder( netiosrv[ _NETIOSRV_hBlock ], .T. )
-
    netiomgm[ _NETIOSRV_cName ]          := "Management"
    netiomgm[ _NETIOSRV_nPort ]          := _NETIOMGM_PORT_DEF
    netiomgm[ _NETIOSRV_cIFAddr ]        := _NETIOMGM_IPV4_DEF
@@ -138,10 +134,6 @@ PROCEDURE netiosrv_Main( lUI, ... )
    netiomgm[ _NETIOSRV_mtxFilters ]     := hb_mutexCreate()
    netiomgm[ _NETIOSRV_hNotifStream ]   := { => }
    netiomgm[ _NETIOSRV_mtxNotifStream ] := hb_mutexCreate()
-
-   hb_HKeepOrder( netiomgm[ _NETIOSRV_hConnection ], .T. )
-   hb_HKeepOrder( netiomgm[ _NETIOSRV_hAllow ], .T. )
-   hb_HKeepOrder( netiomgm[ _NETIOSRV_hBlock ], .T. )
 
    FOR EACH cParam IN { ... }
       DO CASE
@@ -294,7 +286,7 @@ PROCEDURE netiosrv_Main( lUI, ... )
       ENDIF
 
       /* Command prompt */
-      DO WHILE ! netiosrv[ _NETIOSRV_lQuit ]
+      DO WHILE ! netiosrv[ _NETIOSRV_lQuit ] .and. inkey() != 27
          hb_idleSleep( 5 )
       ENDDO
 
@@ -325,8 +317,6 @@ STATIC FUNCTION netiosrv_ConfName()
 STATIC FUNCTION netiosrv_ConfSave( netiosrv, netiomgm )
 
    LOCAL hConf := { => }
-
-   hb_HKeepOrder( hConf, .T. )
 
    hConf[ "__signature" ]  := _NETIOSRV_SIGNATURE
    hConf[ "__version" ]    := 1

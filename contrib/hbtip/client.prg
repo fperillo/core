@@ -3,7 +3,7 @@
  * TIP Class oriented Internet protocol library
  *
  * Copyright 2003 Giancarlo Niccolai <gian@niccolai.ws>
- * Copyright 2009 Viktor Szakats (harbour syenar.net) (SSL support)
+ * Copyright 2009 Viktor Szakats (vszakats.net/harbour) (SSL support)
  * www - http://harbour-project.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -749,6 +749,10 @@ METHOD inetErrorDesc( SocketCon ) CLASS TIPClient
 METHOD inetConnect( cServer, nPort, SocketCon ) CLASS TIPClient
 
    hb_inetConnect( cServer, nPort, SocketCon )
+
+   IF hb_inetStatus( SocketCon ) == -1   /* IMPORTANT: if internet connection is off and address is not resolved and it is SSL compliant, then RTE , must be avoided - Pritpal*/
+      RETURN NIL
+   ENDIF
 
    IF ! Empty( ::nDefaultSndBuffSize )
       ::InetSndBufSize( SocketCon, ::nDefaultSndBuffSize )

@@ -97,6 +97,7 @@ DYNAMIC Wvg_EnableWindow
 DYNAMIC Wvg_FillRect
 DYNAMIC Wvg_FindWindow
 DYNAMIC Wvg_FontCreate
+DYNAMIC Wvg_ForceWindowToTop
 DYNAMIC Wvg_GetClientRect
 DYNAMIC Wvg_GetCurrentBrush
 DYNAMIC Wvg_GetCurrentFont
@@ -130,6 +131,7 @@ DYNAMIC Wvg_IsWindow
 DYNAMIC Wvg_IsZoomed
 DYNAMIC Wvg_Label
 DYNAMIC Wvg_LabelEx
+DYNAMIC Wvg_LabelEx2
 DYNAMIC Wvg_LBGetCurSel
 DYNAMIC Wvg_LBGetText
 DYNAMIC Wvg_LBSetCurSel
@@ -147,6 +149,7 @@ DYNAMIC Wvg_Or
 DYNAMIC Wvg_Outline
 DYNAMIC Wvg_OutlineEx
 DYNAMIC Wvg_Picture
+DYNAMIC Wvg_PictureEx
 DYNAMIC Wvg_PointSizeToHeight
 DYNAMIC Wvg_PostMessage
 DYNAMIC Wvg_PrepareBitmapFromFile
@@ -248,6 +251,7 @@ DYNAMIC Wvt_CreateMenu
 DYNAMIC Wvt_CreatePopupMenu
 DYNAMIC Wvt_DeleteMenu
 DYNAMIC Wvt_DestroyMenu
+DYNAMIC WVT_DESTROYPICTURE
 DYNAMIC Wvt_DialogBox
 DYNAMIC Wvt_DlgSetIcon
 DYNAMIC Wvt_DrawBoxGet
@@ -271,6 +275,7 @@ DYNAMIC Wvt_DrawMenuBar
 DYNAMIC Wvt_DrawOutline
 DYNAMIC Wvt_DrawOutlineEx
 DYNAMIC Wvt_DrawPicture
+DYNAMIC Wvt_DrawPictureEx
 DYNAMIC Wvt_DrawProgressBar
 DYNAMIC Wvt_DrawRectangle
 DYNAMIC Wvt_DrawRoundRect
@@ -315,7 +320,9 @@ DYNAMIC Wvt_LBSetCurSel
 DYNAMIC Wvt_LoadFont
 DYNAMIC Wvt_LoadPen
 DYNAMIC Wvt_LoadPicture
+DYNAMIC WVT_LOADPICTUREEX
 DYNAMIC Wvt_LoadPictureFromResource
+DYNAMIC Wvt_LoadPictureFromResourceEx
 DYNAMIC Wvt_MakeDlgTemplate
 DYNAMIC Wvt_Maximize
 DYNAMIC Wvt_MessageBox

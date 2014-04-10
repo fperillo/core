@@ -2,7 +2,7 @@
  * Harbour Project source code:
  * hb_default() and __defaultNIL() functions
  *
- * Copyright 2012 Viktor Szakats (harbour syenar.net)
+ * Copyright 2012 Viktor Szakats (vszakats.net/harbour)
  * www - http://harbour-project.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -111,6 +111,18 @@ HB_FUNC( HB_DEFAULT )
        s_hb_itemTypeBasic( hb_param( 1, HB_IT_ANY ) ) !=
        s_hb_itemTypeBasic( pDefault ) )
       hb_itemParamStore( 1, pDefault );
+}
+
+HB_FUNC( HB_DEFAULTVALUE )
+{
+   PHB_ITEM pParam = hb_param( 1, HB_IT_ANY );
+   PHB_ITEM pDefault = hb_param( 2, HB_IT_ANY );
+
+   if( pDefault &&
+       s_hb_itemTypeBasic( pParam ) != s_hb_itemTypeBasic( pDefault ) )
+      pParam = pDefault;
+
+   hb_itemReturn( pParam );
 }
 
 /* For compatibility with legacy DEFAULT ... TO ... command.

@@ -63,7 +63,7 @@
  *    __objHasMsg()
  *    __objSendMsg()
  *
- * Copyright 1999-2001 Viktor Szakats (harbour syenar.net)
+ * Copyright 1999-2001 Viktor Szakats (vszakats.net/harbour)
  *    __classNew()
  *    __classInstance()
  *    __classAdd()
@@ -2801,11 +2801,10 @@ static HB_TYPE hb_clsGetItemType( PHB_ITEM pItem, HB_TYPE nDefault )
          {
             case 'C':
             case 'c':
-            case '\0':
                if( hb_strnicmp( hb_itemGetCPtr( pItem ), "code", 4 ) == 0 )
                   return HB_IT_BLOCK;
-               else
-                  return HB_IT_STRING;
+            case '\0':
+               return HB_IT_STRING;
 
             case 'S':
             case 's':
@@ -2820,7 +2819,10 @@ static HB_TYPE hb_clsGetItemType( PHB_ITEM pItem, HB_TYPE nDefault )
 
             case 'D':
             case 'd':
-               return HB_IT_DATE;
+               if( hb_strnicmp( hb_itemGetCPtr( pItem ), "datet", 5 ) == 0 )
+                  return HB_IT_TIMESTAMP;
+               else
+                  return HB_IT_DATE;
 
             case 'T':
             case 't':
@@ -4095,7 +4097,7 @@ HB_FUNC( __CLSINSTSUPER )
                hb_snprintf( szDesc, sizeof( szDesc ),
                             "Super class '%s' does not return an object",
                             pClassFuncSym->szName );
-               hb_errRT_BASE( EG_ARG, 3002, "Super class does not return an object", HB_ERR_FUNCNAME, 0 );
+               hb_errRT_BASE( EG_ARG, 3002, szDesc, HB_ERR_FUNCNAME, 0 );
             }
          }
       }
@@ -5679,6 +5681,39 @@ void hb_clsAssociate( HB_USHORT usClassH )
       HB_STACK_TLS_PRELOAD
       hb_ret();
    }
+}
+
+HB_FUNC( __CLSVERIFY )
+{
+   HB_USHORT uiClass = ( HB_USHORT ) hb_parni( 1 );
+   PHB_ITEM pReturn = hb_itemNew( NULL );
+
+   if( uiClass && uiClass <= s_uiClasses )
+   {
+      PCLASS pClass = s_pClasses[ uiClass ];
+      PMETHOD pMethod = pClass->pMethods;
+      HB_SIZE nLimit = hb_clsMthNum( pClass ), nPos = 0;
+
+      hb_arrayNew( pReturn, pClass->uiMethods );
+      do
+      {
+         if( pMethod->pMessage )
+         {
+            PHB_DYNS pDynSym = hb_dynsymFind( pMethod->pMessage->pSymbol->szName );
+
+            if( pMethod->pMessage != pDynSym ||
+                hb_clsFindMsg( pClass, pDynSym ) != pMethod )
+               hb_arraySetC( pReturn, ++nPos, pMethod->pMessage->pSymbol->szName );
+         }
+         ++pMethod;
+      }
+      while( --nLimit );
+
+      if( nPos < ( HB_SIZE ) pClass->uiMethods )
+         hb_arraySize( pReturn, nPos );
+   }
+
+   hb_itemReturnRelease( pReturn );
 }
 
 #if 0

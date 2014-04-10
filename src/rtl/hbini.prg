@@ -91,26 +91,21 @@ FUNCTION hb_iniNew( lAutoMain )
 
    LOCAL hIni := { => }
 
-   hb_HKeepOrder( hIni, .T. )
-
    hb_default( @lAutoMain, .T. )
 
    IF lAutoMain
       hIni[ "MAIN" ] := { => }
-      hb_HKeepOrder( hIni[ "MAIN" ], .T. )
    ENDIF
 
    RETURN hIni
 
 FUNCTION hb_iniRead( cFileSpec, lKeyCaseSens, cSplitters, lAutoMain )
 
-   RETURN hb_iniReadStr( iif( HB_ISSTRING( cFileSpec ), hb_IniFileLow( cFileSpec ), "" ), lKeyCaseSens, cSplitters, lAutoMain )
+   RETURN hb_iniReadStr( iif( HB_ISSTRING( cFileSpec ), hb_iniFileLow( cFileSpec ), "" ), lKeyCaseSens, cSplitters, lAutoMain )
 
 FUNCTION hb_iniReadStr( cData, lKeyCaseSens, cSplitters, lAutoMain )
 
    LOCAL hIni := { => }
-
-   hb_HKeepOrder( hIni, .T. )
 
    /* Default case sensitiveness for keys */
    hb_default( @lKeyCaseSens, .T. )
@@ -122,12 +117,11 @@ FUNCTION hb_iniReadStr( cData, lKeyCaseSens, cSplitters, lAutoMain )
 
    IF lAutoMain
       hIni[ "MAIN" ] := { => }
-      hb_HKeepOrder( hIni[ "MAIN" ], .T. )
    ENDIF
 
-   RETURN hb_IniStringLow( hIni, cData, lKeyCaseSens, cSplitters, lAutoMain )
+   RETURN hb_iniStringLow( hIni, cData, lKeyCaseSens, cSplitters, lAutoMain )
 
-STATIC FUNCTION hb_IniFileLow( cFileSpec )
+STATIC FUNCTION hb_iniFileLow( cFileSpec )
 
    LOCAL cFile, nLen
    LOCAL hFile
@@ -148,7 +142,7 @@ STATIC FUNCTION hb_IniFileLow( cFileSpec )
    NEXT
 
    IF hFile == F_ERROR
-      RETURN NIL
+      RETURN ""
    ENDIF
 
    /* we'll read the whole file, then we'll break it in lines. */
@@ -160,7 +154,7 @@ STATIC FUNCTION hb_IniFileLow( cFileSpec )
 
    RETURN cData
 
-STATIC FUNCTION hb_IniStringLow( hIni, cData, lKeyCaseSens, cSplitters, lAutoMain )
+STATIC FUNCTION hb_iniStringLow( hIni, cData, lKeyCaseSens, cSplitters, lAutoMain )
 
    LOCAL nLen
    LOCAL aKeyVal, hCurrentSection
@@ -238,7 +232,7 @@ STATIC FUNCTION hb_IniStringLow( hIni, cData, lKeyCaseSens, cSplitters, lAutoMai
          IF Len( aKeyVal[ 2 ] ) == 0
             LOOP
          ENDIF
-         hb_IniStringLow( hIni, hb_IniFileLow( aKeyVal[ 2 ] ), lKeyCaseSens, cSplitters, lAutoMain )
+         hb_iniStringLow( hIni, hb_iniFileLow( aKeyVal[ 2 ] ), lKeyCaseSens, cSplitters, lAutoMain )
          cLine := ""
          LOOP
       ENDIF
@@ -249,7 +243,6 @@ STATIC FUNCTION hb_IniStringLow( hIni, cData, lKeyCaseSens, cSplitters, lAutoMai
          cLine := AllTrim( aKeyVal[ 2 ] )
          IF Len( cLine ) != 0
             hCurrentSection := { => }
-            hb_HKeepOrder( hCurrentSection, .T. )
             IF ! lKeyCaseSens
                cLine := Upper( cLine )
             ENDIF
@@ -335,7 +328,7 @@ FUNCTION hb_iniWriteStr( hIni, cCommentBegin, cCommentEnd, lAutoMain )
    hb_default( @lAutoMain, .T. )
 
    // Fix if lAutoMain is .T. but I haven't a MAIN section
-   IF lAutoMain .AND. ! hb_HHasKey( hIni, "MAIN" )
+   IF lAutoMain .AND. !( "MAIN" $ hIni )
       lAutoMain := .F.
    ENDIF
 
@@ -343,13 +336,12 @@ FUNCTION hb_iniWriteStr( hIni, cCommentBegin, cCommentEnd, lAutoMain )
    IF lAutoMain
       /* When automain is on, write the main section */
       hb_HEval( hIni[ "MAIN" ], ;
-         {| cKey, xVal | cBuffer += hb_CStr( cKey ) + " = " + ;
+         {| cKey, xVal | cBuffer += hb_CStr( cKey ) + "=" + ;
          hb_CStr( xVal ) + cNewLine } )
-
    ELSE
       /* When automain is off, just write all the toplevel variables. */
       hb_HEval( hIni, {| cKey, xVal | iif( ! HB_ISHASH( xVal ), ;
-         cBuffer += hb_CStr( cKey ) + " = " + ;
+         cBuffer += hb_CStr( cKey ) + "=" + ;
          hb_CStr( xVal ) + cNewLine, /* nothing */ ) } )
    ENDIF
 

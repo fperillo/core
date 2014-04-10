@@ -2,7 +2,7 @@
  * Harbour Project source code:
  * Harbour Windows Printing support functions
  *
- * Copyright 2009 Viktor Szakats (harbour syenar.net)
+ * Copyright 2009 Viktor Szakats (vszakats.net/harbour)
  * Copyright 2002 Luiz Rafael Culik <culikr@uol.com.br>
  * www - http://harbour-project.org
  *
@@ -132,8 +132,8 @@ static void hb_GetDefaultPrinter( PHB_ITEM pPrinterName )
 
       if( hWinSpool )
       {
-         fnGetDefaultPrinter = ( DEFPRINTER ) GetProcAddress( hWinSpool,
-             HB_WINAPI_FUNCTION_NAME( "GetDefaultPrinter" ) );
+         fnGetDefaultPrinter = ( DEFPRINTER ) HB_WINAPI_GETPROCADDRESST( hWinSpool,
+            "GetDefaultPrinter" );
 
          if( fnGetDefaultPrinter )
          {

@@ -3,7 +3,7 @@
  * hb_FSize() function
  *
  * Copyright 2000-2001 Jose Lalin <dezac@corevia.com>
- * Copyright 2000-2001 Viktor Szakats (harbour syenar.net)
+ * Copyright 2000-2001 Viktor Szakats (vszakats.net/harbour)
  * www - http://harbour-project.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -119,7 +119,7 @@ HB_FOFFSET hb_fsFSize( const char * pszFileName, HB_BOOL bUseDirEntry )
    }
    else
    {
-      HB_FHANDLE hFileHandle = hb_fsOpen( pszFileName, 0 );
+      HB_FHANDLE hFileHandle = hb_fsOpen( pszFileName, FO_READ | FO_COMPAT );
 
       if( hFileHandle != FS_ERROR )
       {

@@ -153,7 +153,7 @@ static HB_BOOL s_getKeyValue( LPCTSTR lpKey, LPTSTR lpBuffer, int iLen )
    iPos = 0;
    for( ;; )
    {
-      char c = lpKey[ iPos++ ];
+      TCHAR c = lpKey[ iPos++ ];
       if( c == TEXT( '$' ) || c == TEXT( '@' ) || c == TEXT( '\0' ) )
       {
          if( --iPos )
@@ -874,10 +874,7 @@ HB_FUNC( WIN_OLESERVERINIT )
                      if( HB_IS_HASH( s_pAction ) )
                         s_fHashClone = HB_TRUE;
                      else
-                     {
                         s_pMsgHash = hb_hashNew( hb_itemNew( NULL ) );
-                        hb_hashSetFlags( s_pMsgHash, HB_HASH_KEEPORDER );
-                     }
                   }
                }
                else if( ! HB_ISNIL( 4 ) )

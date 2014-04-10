@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------
-# Copyright 2009 Viktor Szakats (harbour syenar.net) (rework)
+# Copyright 2009 Viktor Szakats (vszakats.net/harbour) (rework)
 # See COPYING.txt for licensing terms.
 # ---------------------------------------------------------------
 
@@ -93,7 +93,7 @@ MK := $(subst \,/,$(MAKE))
 RM := del /q /f
 RDP := rmdir /q /s
 CP := copy
-LN :=
+LN := $(CP)
 MD := mkdir
 MDP := mkdir
 ECHO := echo

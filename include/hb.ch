@@ -2,7 +2,7 @@
  * Harbour Project source code:
  * Main Harbour header
  *
- * Copyright 2010 Viktor Szakats (harbour syenar.net)
+ * Copyright 2010 Viktor Szakats (vszakats.net/harbour)
  * www - http://harbour-project.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -55,6 +55,7 @@
 #include "fileio.ch"
 #include "hbgtinfo.ch"
 #include "hbhash.ch"
+#include "hbserial.ch"
 #include "inkey.ch"
 #include "setcurs.ch"
 

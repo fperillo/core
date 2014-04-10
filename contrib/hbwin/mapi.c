@@ -2,7 +2,7 @@
  * Harbour Project source code:
  * Simple MAPI wrapper
  *
- * Copyright 2009 Viktor Szakats (harbour syenar.net)
+ * Copyright 2009 Viktor Szakats (vszakats.net/harbour)
  * Copyright 2009 Toninho (toninhofwi yahoo.com.br)
  * www - http://harbour-project.org
  *
@@ -93,7 +93,7 @@ HB_FUNC( WIN_MAPISENDMAIL )
 #endif
             ) ) >= ( HINSTANCE ) 32 )
    {
-      LPMAPISENDMAIL MAPISendMail = ( LPMAPISENDMAIL ) GetProcAddress( hMapiDll, "MAPISendMail" );
+      LPMAPISENDMAIL MAPISendMail = ( LPMAPISENDMAIL ) HB_WINAPI_GETPROCADDRESS( hMapiDll, "MAPISendMail" );
 
       if( MAPISendMail )
       {

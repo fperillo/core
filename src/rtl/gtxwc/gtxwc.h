@@ -67,6 +67,7 @@
 #include "hbapicdp.h"
 #include "hbapistr.h"
 #include "hbthread.h"
+#include "hbdate.h"
 
 #include <unistd.h>
 #include <signal.h>
@@ -84,8 +85,8 @@ typedef HB_USHORT HB_GT_CELLTYPE;
 
 #define XWC_CHAR_QUEUE_SIZE         128
 #define XWC_CHAR_BUFFER             1024
-#define XWC_MIN_ROWS                3
-#define XWC_MIN_COLS                6
+#define XWC_MIN_ROWS                1
+#define XWC_MIN_COLS                1
 #define XWC_MAX_ROWS                256
 #define XWC_MAX_COLS                256
 #define XWC_DEFAULT_ROWS            25
@@ -98,21 +99,9 @@ typedef HB_USHORT HB_GT_CELLTYPE;
 /* Font definition */
 #define XWC_DEFAULT_FONT_HEIGHT     18
 #define XWC_DEFAULT_FONT_WIDTH      9
-#define XWC_DEFAULT_FONT_WEIGHT     "medium"
+#define XWC_DEFAULT_FONT_WEIGHT     HB_GTI_FONTW_NORMAL
 #define XWC_DEFAULT_FONT_NAME       "fixed"
 #define XWC_DEFAULT_FONT_ENCODING   "iso10646-1"
-
-#if 0
-#define XWC_DEFAULT_FONT_WEIGHT     "*"
-#define XWC_DEFAULT_FONT_ENCODING   "iso8859-1"
-#define XWC_DEFAULT_FONT_NAME       "Lucida Console"
-
-#define XWC_DEFAULT_FONT_HEIGHT     20
-#define XWC_DEFAULT_FONT_WIDTH      9
-#define XWC_DEFAULT_FONT_WEIGHT     "medium"
-#define XWC_DEFAULT_FONT_NAME       "rcsoft"
-#define XWC_DEFAULT_FONT_ENCODING   "iso10646-1"
-#endif
 
 #define XWC_DEFAULT_FONT_FIXMETRIC  HB_FALSE
 #define XWC_DEFAULT_FONT_CLRBKG     HB_FALSE
@@ -124,7 +113,7 @@ typedef HB_USHORT HB_GT_CELLTYPE;
 
 #define XWC_STD_MASK                ( ExposureMask | StructureNotifyMask | FocusChangeMask | \
                                       ButtonPressMask | ButtonReleaseMask | PointerMotionMask | \
-                                      KeyPressMask | KeyReleaseMask )
+                                      KeyPressMask | KeyReleaseMask | VisibilityChangeMask )
 
 /* Box char unicode values */
 #define HB_BOXCH_ARROW_R            0x0010 /* ARROW RIGHT */

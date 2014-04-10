@@ -1,8 +1,8 @@
 /*
  * Harbour Project source code:
- * MemVarBlock() function
+ * FoxPro compatible Occurs() function
  *
- * Copyright 1999 Ryszard Glab <rglab@imid.med.pl>
+ * Copyright 2014 Przemyslaw Czerpak <druzus / at / priv.onet.pl>
  * www - http://harbour-project.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -46,12 +46,13 @@
  *
  */
 
-#include "hbmemvar.ch"
+FUNCTION Occurs( cSub, cStr )
+   LOCAL nCount := 0, nPos := 0
 
-FUNCTION MemVarBlock( cMemvar )
-
-   IF HB_ISSTRING( cMemvar ) .AND. __mvExist( cMemvar )
-      RETURN {| x | iif( x == NIL, __mvGet( cMemvar ), __mvPut( cMemvar, x ) ) }
+   IF HB_ISSTRING( cSub ) .AND. HB_ISSTRING( cStr )
+      DO WHILE ( nPos := hb_At( cSub, cStr, nPos + 1 ) ) != 0
+         ++nCount
+      ENDDO
    ENDIF
 
-   RETURN NIL
+   RETURN nCount

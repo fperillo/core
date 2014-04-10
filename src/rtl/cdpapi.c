@@ -61,6 +61,8 @@ static HB_CRITICAL_NEW( s_cdpMtx );
 
 #define NUMBER_OF_CHARS  256
 
+#define HB_MAX_CTRL_CODE      0x266B
+
 static const HB_WCHAR s_uniCtrls[ 32 ] =
 {
    0x2007, 0x263A, 0x263B, 0x2665, 0x2666, 0x2663, 0x2660, 0x2022,
@@ -68,6 +70,8 @@ static const HB_WCHAR s_uniCtrls[ 32 ] =
    0x25BA, 0x25C4, 0x2195, 0x203C, 0x00B6, 0x00A7, 0x25AC, 0x21A8,
    0x2191, 0x2193, 0x2192, 0x2190, 0x221F, 0x2194, 0x25B2, 0x25BC
 };
+
+static HB_UCHAR * s_rev_ctrl = NULL;
 
 static const HB_WCHAR s_uniCodes[ NUMBER_OF_CHARS ] =
 {
@@ -120,7 +124,7 @@ static HB_CDP_LEN_FUNC( hb_cdpUTF8_len );
 
 HB_UNITABLE hb_uniTbl_UTF8 = { HB_CPID_437, s_uniCodes, NULL, 0 };
 
-HB_UCHAR s_en_buffer[ 0x300 ];
+static HB_UCHAR s_en_buffer[ 0x300 ];
 
 /* pseudo codepage for translations only */
 static HB_CODEPAGE s_utf8_codepage =
@@ -151,13 +155,12 @@ static PHB_CODEPAGE s_cdpList = NULL;
  */
 void hb_cdpBuildTransTable( PHB_UNITABLE uniTable )
 {
-   HB_WCHAR wcMax = 0;
-   int i;
-
    HB_CDP_LOCK();
    if( uniTable->uniTrans == NULL )
    {
       HB_UCHAR * uniTrans;
+      HB_WCHAR wcMax = 0;
+      int i;
 
       for( i = 0; i < 256; ++i )
       {
@@ -165,8 +168,7 @@ void hb_cdpBuildTransTable( PHB_UNITABLE uniTable )
          if( wc > wcMax )
             wcMax = wc;
       }
-      uniTrans = ( HB_UCHAR * )
-                           hb_xgrab( ( wcMax + 1 ) * sizeof( HB_UCHAR ) );
+      uniTrans = ( HB_UCHAR * ) hb_xgrab( ( wcMax + 1 ) * sizeof( HB_UCHAR ) );
       memset( uniTrans, '\0', ( wcMax + 1 ) * sizeof( HB_UCHAR ) );
       for( i = 0; i < 256; ++i )
       {
@@ -176,6 +178,15 @@ void hb_cdpBuildTransTable( PHB_UNITABLE uniTable )
 
       uniTable->wcMax = wcMax;
       uniTable->uniTrans = uniTrans;
+
+      if( s_rev_ctrl == NULL )
+      {
+         wcMax = HB_MAX_CTRL_CODE;
+         s_rev_ctrl = ( HB_UCHAR * ) hb_xgrab( ( wcMax + 1 ) * sizeof( HB_UCHAR ) );
+         memset( s_rev_ctrl, '\0', ( wcMax + 1 ) * sizeof( HB_UCHAR ) );
+         for( i = 0; i < 32; ++i )
+            s_rev_ctrl[ s_uniCtrls[ i ] ] = ( HB_UCHAR ) i;
+      }
    }
    HB_CDP_UNLOCK();
 }
@@ -244,6 +255,10 @@ static int hb_cdpBin_cmp( PHB_CODEPAGE cdp,
       else if( fExact && nLenSecond < nLenFirst )
          iRet = 1;
    }
+   else if( iRet > 0 )
+      iRet = 1;
+   else
+      iRet = -1;
 
    return iRet;
 }
@@ -1687,6 +1702,12 @@ HB_UCHAR hb_cdpGetUC( PHB_CODEPAGE cdp, HB_WCHAR wc, HB_UCHAR ucDef )
          if( wc <= cdp->uniTable->wcMax )
          {
             HB_UCHAR uc = cdp->uniTable->uniTrans[ wc ];
+            if( uc )
+               ucDef = uc;
+         }
+         if( ucDef == 0 && wc <= HB_MAX_CTRL_CODE )
+         {
+            HB_UCHAR uc = s_rev_ctrl[ wc ];
             if( uc )
                ucDef = uc;
          }
@@ -3189,6 +3210,11 @@ void hb_cdpReleaseAll( void )
       s_cdpList = s_cdpList->next;
       if( buffer )
          hb_xfree( buffer );
+   }
+   if( s_rev_ctrl != NULL )
+   {
+      hb_xfree( s_rev_ctrl );
+      s_rev_ctrl = NULL;
    }
 }
 

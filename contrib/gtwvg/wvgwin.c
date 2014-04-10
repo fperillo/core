@@ -1018,6 +1018,12 @@ HB_FUNC( WVG_POSTMESSAGE )
    hb_retl( PostMessage( wvg_parhwnd( 1 ), hb_parni( 2 ), ( WPARAM ) hb_parni( 3 ), ( LPARAM ) hb_parni( 4 ) ) );
 }
 
+HB_FUNC( WVG_FORCEWINDOWTOTOP )
+{
+   SetWindowPos( wvg_parhwnd( 1 ), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE );
+   SetWindowPos( wvg_parhwnd( 1 ), HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE );
+}
+
 /*
  * Win_SetLayeredWindowAttributes( hWnd, nRGB, nOpacityFactor [0-255] )
  */
@@ -1030,7 +1036,7 @@ HB_FUNC( WVG_SETLAYEREDWINDOWATTRIBUTES )
    h = GetModuleHandle( TEXT( "user32.dll" ) );
    if( h )
    {
-      pfnLayered = ( wvtSetLayeredWindowAttributes ) GetProcAddress( h, "SetLayeredWindowAttributes" );
+      pfnLayered = ( wvtSetLayeredWindowAttributes ) HB_WINAPI_GETPROCADDRESS( h, "SetLayeredWindowAttributes" );
       if( pfnLayered )
       {
          HWND     hWnd = hbwapi_par_raw_HWND( 1 );

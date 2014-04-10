@@ -1,4 +1,3 @@
-
 HOW TO USE THE SOURCE REPOSITORY
 --------------------------------
 
@@ -100,7 +99,7 @@ by David G. Holm
    and the commit.
 
 
-[ Copyright (c) 1999-2013 Viktor Szakats (harbour syenar.net)
+[ Copyright (c) 1999-2013 Viktor Szakats (vszakats.net/harbour)
   Licensed under Creative Commons Attribution-ShareAlike 3.0:
   http://creativecommons.org/licenses/by-sa/3.0/
   See COPYING.txt. ]

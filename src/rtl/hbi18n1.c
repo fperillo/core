@@ -443,7 +443,7 @@ static PHB_ITEM hb_i18n_serialize( PHB_I18N_TRANS pI18N )
    {
       HB_SIZE nSize;
       HB_U32 ulCRC;
-      char * pBuffer = hb_itemSerialize( pI18N->table, HB_FALSE, &nSize );
+      char * pBuffer = hb_itemSerialize( pI18N->table, 0, &nSize );
       char * pI18Nbuffer;
       PHB_ITEM pKey, pValue;
 
@@ -874,7 +874,7 @@ PHB_ITEM hb_i18n_ngettext( PHB_ITEM pNum, PHB_ITEM pMsgID, PHB_ITEM pContext )
       }
    }
 
-   if( HB_IS_ARRAY( pMsgID ) )
+   if( pMsgID && HB_IS_ARRAY( pMsgID ) )
    {
       long lIndex;
 

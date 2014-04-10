@@ -90,7 +90,7 @@ static void hb_pp_writeToken( FILE * fout, PHB_PP_TOKEN pToken,
          fprintf( fout, ", NULL%*s", i, "" );
 
       i = 16 - ( int ) strlen( pToken->value );
-      fprintf( fout, ", \"%s\", %*s %2d,%2d, 0x%04x, %d }%s\n",
+      fprintf( fout, ", \"%s\", %*s %2d,%2d, 0x%04x, %u }%s\n",
                pToken->value,
                i < 0 ? 0 : i, "",
                ( int ) pToken->len, ( int ) pToken->spaces,
@@ -171,7 +171,7 @@ static int hb_pp_writeRules( FILE * fout, PHB_PP_RULE pFirst, const char * szNam
          if( pRule->pMarkers[ u ].canrepeat )
             ulRepeatBits |= ulBit;
       }
-      fprintf( fout, "   { %s, %s, %d,%2d, 0x%04lx }%s\n",
+      fprintf( fout, "   { %s, %s, %d,%2u, 0x%04lx }%s\n",
                szMatch, szResult, HB_PP_CMP_MODE( pRule->mode ),
                pRule->markers, ulRepeatBits, pRule->pPrev ? "," : "" );
       pRule = pRule->pPrev;
@@ -199,7 +199,7 @@ static void hb_pp_generateRules( FILE * fout, PHB_PP_STATE pState, const char * 
             " * Harbour Project source code:\n"
             " *    Build in preprocessor rules.\n"
             " *\n"
-            " * Copyright 2006-2013 Przemyslaw Czerpak <druzus / at / priv.onet.pl>\n"
+            " * Copyright 2006-2014 Przemyslaw Czerpak <druzus / at / priv.onet.pl>\n"
             " * www - http://harbour-project.org\n"
             " *\n"
             " * This file is generated automatically by Harbour preprocessor\n"
@@ -344,7 +344,7 @@ static int hb_pp_generateVerInfo( char * szVerFile, int iRevID, char * szChangeL
                " * Harbour Project source code:\n"
                " *    Version information and build time switches.\n"
                " *\n"
-               " * Copyright 2008-2013 Przemyslaw Czerpak <druzus / at / priv.onet.pl>\n"
+               " * Copyright 2008-2014 Przemyslaw Czerpak <druzus / at / priv.onet.pl>\n"
                " * www - http://harbour-project.org\n"
                " *\n"
                " * This file is generated automatically by Harbour preprocessor\n"
@@ -427,6 +427,7 @@ static char * hb_fsFileFind( const char * pszFileMask )
       char pszFileName[ HB_PATH_MAX ];
       PHB_FNAME pFileName = hb_fsFNameSplit( pszFileMask );
       pFileName->szName = ffind->szName;
+      pFileName->szExtension = NULL;
       hb_fsFNameMerge( pszFileName, pFileName );
       hb_fsFindClose( ffind );
       hb_xfree( pFileName );
@@ -574,7 +575,7 @@ static int hb_pp_parseChangelog( PHB_PP_STATE pState, const char * pszFileName,
       }
       else
       {
-         char szRevID[ 11 ];
+         char szRevID[ 18 ];
 
          *szLine = '"';
          hb_strncpy( szLine + 1, szLog, sizeof( szLine ) - 3 );
@@ -593,26 +594,56 @@ static int hb_pp_parseChangelog( PHB_PP_STATE pState, const char * pszFileName,
 
          if( strlen( szLog ) >= 16 )
          {
-            szRevID[ 0 ] = szLog[ 2 ];
-            szRevID[ 1 ] = szLog[ 3 ];
-            szRevID[ 2 ] = szLog[ 5 ];
-            szRevID[ 3 ] = szLog[ 6 ];
-            szRevID[ 4 ] = szLog[ 8 ];
-            szRevID[ 5 ] = szLog[ 9 ];
-            szRevID[ 6 ] = szLog[ 11 ];
-            szRevID[ 7 ] = szLog[ 12 ];
-            szRevID[ 8 ] = szLog[ 14 ];
-            szRevID[ 9 ] = szLog[ 15 ];
+            long lJulian = 0, lMilliSec = 0;
+            int iUTC = 0;
+
+            if( strlen( szLog ) >= 25 && szLog[ 17 ] == 'U' &&
+                szLog[ 18 ] == 'T' && szLog[ 19 ] == 'C' &&
+                ( szLog[ 20 ] == '+' || szLog[ 20 ] == '-' ) &&
+                HB_ISDIGIT( szLog[ 21 ] ) && HB_ISDIGIT( szLog[ 22 ] ) &&
+                HB_ISDIGIT( szLog[ 23 ] ) && HB_ISDIGIT( szLog[ 24 ] ) )
+            {
+               iUTC = ( ( int ) ( szLog[ 21 ] - '0' ) * 10 +
+                        ( int ) ( szLog[ 22 ] - '0' ) ) * 60 +
+                        ( int ) ( szLog[ 23 ] - '0' ) * 10 +
+                        ( int ) ( szLog[ 24 ] - '0' );
+            }
+            szLog[ 16 ] = '\0';
+            if( iUTC != 0 && hb_timeStampStrGetDT( szLog, &lJulian, &lMilliSec ) )
+            {
+               hb_timeStampUnpackDT( hb_timeStampPackDT( lJulian, lMilliSec ) -
+                                     ( double ) iUTC / ( 24 * 60 ),
+                                     &lJulian, &lMilliSec );
+            }
+            if( lJulian && lMilliSec )
+            {
+               hb_timeStampStrRawPut( szRevID, lJulian, lMilliSec );
+               memmove( szRevID, szRevID + 2, 10 );
+            }
+            else
+            {
+               szRevID[ 0 ] = szLog[ 2 ];
+               szRevID[ 1 ] = szLog[ 3 ];
+               szRevID[ 2 ] = szLog[ 5 ];
+               szRevID[ 3 ] = szLog[ 6 ];
+               szRevID[ 4 ] = szLog[ 8 ];
+               szRevID[ 5 ] = szLog[ 9 ];
+               szRevID[ 6 ] = szLog[ 11 ];
+               szRevID[ 7 ] = szLog[ 12 ];
+               szRevID[ 8 ] = szLog[ 14 ];
+               szRevID[ 9 ] = szLog[ 15 ];
+            }
             szRevID[ 10 ] = '\0';
+
          }
          else
             szRevID[ 0 ] = '\0';
 
          *piRevID = ( int ) hb_strValInt( szRevID, &iLen );
 
-         hb_pp_addDefine( pState, "HB_VER_REVID", hb_strdup( szRevID ) );
+         hb_pp_addDefine( pState, "HB_VER_REVID", szRevID );
 #ifdef HB_LEGACY_LEVEL4
-         hb_pp_addDefine( pState, "HB_VER_SVNID", hb_strdup( szRevID ) );
+         hb_pp_addDefine( pState, "HB_VER_SVNID", szRevID );
 #endif
       }
    }
@@ -761,7 +792,7 @@ int main( int argc, char * argv[] )
    {
       printf( "Harbour Preprocessor %d.%d.%d%s\n",
               HB_VER_MAJOR, HB_VER_MINOR, HB_VER_RELEASE, HB_VER_STATUS );
-      printf( "Copyright (c) 1999-2013, http://harbour-project.org/\n" );
+      printf( "Copyright (c) 1999-2014, http://harbour-project.org/\n" );
    }
 
    if( szFile )

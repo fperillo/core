@@ -4,7 +4,7 @@
  *
  * Copyright 2010 Przemyslaw Czerpak <druzus / at / priv.onet.pl>
  * This code uses HB_DLL_NAME* macros defined by
- *    Viktor Szakats (harbour syenar.net)
+ *    Viktor Szakats (vszakats.net/harbour)
  * www - http://harbour-project.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -132,15 +132,19 @@ PHB_FUNC hb_dllGetProcAddress( const char * szProcName )
 
       if( s_hModule != NULL )
       {
-         static const char * s_szGetProcAddr = "_dll_hb_vmProcAddress";
-         int i = 6;
+         int i = 5;
 
          do
          {
-            i -= i == 4 ? 3 : 1;
+#if defined( HB_OS_WIN_CE )
+            LPCTSTR s_lpGetProcAddr = TEXT( "_dll_hb_vmProcAddress" );
+            s_pProcGet = ( HB_PROC_GET ) GetProcAddress( s_hModule, s_lpGetProcAddr + i );
+#else
+            static const char * s_szGetProcAddr = "_dll_hb_vmProcAddress";
             s_pProcGet = ( HB_PROC_GET ) GetProcAddress( s_hModule, s_szGetProcAddr + i );
+#endif
          }
-         while( s_pProcGet == NULL && i > 0 );
+         while( s_pProcGet == NULL && ( i -= i == 4 ? 3 : 1 ) >= 0 );
          if( s_pProcGet == NULL )
             HB_DLL_MSG_NO_FUNC( "hb_vmProcAddress" );
       }

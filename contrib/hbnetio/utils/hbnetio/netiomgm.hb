@@ -2,7 +2,7 @@
  * Harbour Project source code:
  * Harbour NETIO server management client engine
  *
- * Copyright 2009-2013 Viktor Szakats (harbour syenar.net)
+ * Copyright 2009-2013 Viktor Szakats (vszakats.net/harbour)
  * www - http://harbour-project.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -109,7 +109,7 @@ STATIC FUNCTION hbnetiocon_init( hConIO, aParam )
       "filtsave"      => { ""               , "Save filters to disk."                          , {| netiocli | cmdConnFilterSave( netiocli ) } },;
       "stop"          => { "[<ip:port>|all]", "Stop specified connection(s)."                  , {| netiocli, cCommand | cmdConnStop( netiocli, cCommand ) } },;
       "clientinfo"    => { "[<ip:port>"     , "Show client details."                           , {| netiocli, cCommand | cmdConnClientInfo( netiocli, cCommand ) } },;
-      "quit"          => { ""               , "Stop server."                                   , {| netiocli | cmdShutdown( netiocli ) } },;
+      "shutdown"      => { ""               , "Stop server."                                   , {| netiocli | cmdShutdown( netiocli ) } },;
       "help"          => { ""               , "Display this help."                             , {| netiocli | cmdHelp( netiocli ) } } }
 
    IF ! Empty( cPassword )
@@ -264,17 +264,11 @@ STATIC PROCEDURE DisconnectLow( netiocli )
 
 STATIC FUNCTION MyClientInfo()
 
-   LOCAL hInfo := { => }
-
-   hb_HKeepOrder( hInfo, .T. )
-
-   hInfo[ "OS()"          ] := OS()
-   hInfo[ "Version()"     ] := Version()
-   hInfo[ "hb_Compiler()" ] := hb_Compiler()
-   hInfo[ "NetName()"     ] := NetName()
-   hInfo[ "hb_UserName()" ] := hb_UserName()
-
-   RETURN hInfo
+   RETURN { "OS()"          => OS()          , ;
+            "Version()"     => Version()     , ;
+            "hb_Compiler()" => hb_Compiler() , ;
+            "NetName()"     => NetName()     , ;
+            "hb_UserName()" => hb_UserName() }
 
 STATIC FUNCTION XToStrX( xValue )
 

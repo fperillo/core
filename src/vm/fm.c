@@ -50,7 +50,7 @@
  * The following parts are Copyright of the individual authors.
  * www - http://harbour-project.org
  *
- * Copyright 1999-2001 Viktor Szakats (harbour syenar.net)
+ * Copyright 1999-2001 Viktor Szakats (vszakats.net/harbour)
  *    hb_xquery()
  *
  * See COPYING.txt for licensing terms.
@@ -616,25 +616,6 @@ void * hb_xalloc( HB_SIZE nSize )         /* allocates fixed memory, returns NUL
    {
       PHB_TRACEINFO pTrace;
 
-      HB_FM_LOCK();
-
-      if( ! s_pFirstBlock )
-      {
-         pMem->pPrevBlock = NULL;
-         s_pFirstBlock = pMem;
-      }
-      else
-      {
-         pMem->pPrevBlock = s_pLastBlock;
-         s_pLastBlock->pNextBlock = pMem;
-      }
-      s_pLastBlock = pMem;
-
-      pMem->pNextBlock = NULL;
-      pMem->u32Signature = HB_MEMINFO_SIGNATURE;
-      HB_FM_SETSIG( HB_MEM_PTR( pMem ), nSize );
-      pMem->nSize = nSize;  /* size of the memory block */
-
       pTrace = hb_traceinfo();
       if( hb_tr_level() >= HB_TR_DEBUG || pTrace->level == HB_TR_FM )
       {
@@ -654,6 +635,25 @@ void * hb_xalloc( HB_SIZE nSize )         /* allocates fixed memory, returns NUL
       {
          hb_stackBaseProcInfo( pMem->szProcName, &pMem->uiProcLine );
       }
+
+      HB_FM_LOCK();
+
+      if( ! s_pFirstBlock )
+      {
+         pMem->pPrevBlock = NULL;
+         s_pFirstBlock = pMem;
+      }
+      else
+      {
+         pMem->pPrevBlock = s_pLastBlock;
+         s_pLastBlock->pNextBlock = pMem;
+      }
+      s_pLastBlock = pMem;
+
+      pMem->pNextBlock = NULL;
+      pMem->u32Signature = HB_MEMINFO_SIGNATURE;
+      HB_FM_SETSIG( HB_MEM_PTR( pMem ), nSize );
+      pMem->nSize = nSize;  /* size of the memory block */
 
       s_nMemoryConsumed += nSize + sizeof( HB_COUNTER );
       if( s_nMemoryMaxConsumed < s_nMemoryConsumed )
@@ -702,25 +702,6 @@ void * hb_xgrab( HB_SIZE nSize )         /* allocates fixed memory, exits on fai
    {
       PHB_TRACEINFO pTrace;
 
-      HB_FM_LOCK();
-
-      if( ! s_pFirstBlock )
-      {
-         pMem->pPrevBlock = NULL;
-         s_pFirstBlock = pMem;
-      }
-      else
-      {
-         pMem->pPrevBlock = s_pLastBlock;
-         s_pLastBlock->pNextBlock = pMem;
-      }
-      s_pLastBlock = pMem;
-
-      pMem->pNextBlock = NULL;
-      pMem->u32Signature = HB_MEMINFO_SIGNATURE;
-      HB_FM_SETSIG( HB_MEM_PTR( pMem ), nSize );
-      pMem->nSize = nSize;  /* size of the memory block */
-
       pTrace = hb_traceinfo();
       if( hb_tr_level() >= HB_TR_DEBUG || pTrace->level == HB_TR_FM )
       {
@@ -740,6 +721,25 @@ void * hb_xgrab( HB_SIZE nSize )         /* allocates fixed memory, exits on fai
       {
          hb_stackBaseProcInfo( pMem->szProcName, &pMem->uiProcLine );
       }
+
+      HB_FM_LOCK();
+
+      if( ! s_pFirstBlock )
+      {
+         pMem->pPrevBlock = NULL;
+         s_pFirstBlock = pMem;
+      }
+      else
+      {
+         pMem->pPrevBlock = s_pLastBlock;
+         s_pLastBlock->pNextBlock = pMem;
+      }
+      s_pLastBlock = pMem;
+
+      pMem->pNextBlock = NULL;
+      pMem->u32Signature = HB_MEMINFO_SIGNATURE;
+      HB_FM_SETSIG( HB_MEM_PTR( pMem ), nSize );
+      pMem->nSize = nSize;  /* size of the memory block */
 
       s_nMemoryConsumed += nSize + sizeof( HB_COUNTER );
       if( s_nMemoryMaxConsumed < s_nMemoryConsumed )
@@ -805,8 +805,6 @@ void * hb_xrealloc( void * pMem, HB_SIZE nSize )       /* reallocates memory */
 
       HB_FM_CLRSIG( pMem, nMemSize );
 
-      HB_FM_LOCK();
-
 #ifdef HB_PARANOID_MEM_CHECK
       pMem = malloc( HB_ALLOC_SIZE( nSize ) );
       if( pMem )
@@ -825,6 +823,8 @@ void * hb_xrealloc( void * pMem, HB_SIZE nSize )       /* reallocates memory */
 #else
       pMem = realloc( pMemBlock, HB_ALLOC_SIZE( nSize ) );
 #endif
+
+      HB_FM_LOCK();
 
       s_nMemoryConsumed += ( nSize - nMemSize );
       if( s_nMemoryMaxConsumed < s_nMemoryConsumed )
@@ -1045,6 +1045,33 @@ HB_SIZE hb_xsize( void * pMem ) /* returns the size of an allocated memory block
 #endif
 }
 
+/* NOTE: Debug function, it will always return NULL when HB_FM_STATISTICS is
+         not defined, don't use it for final code */
+
+const char * hb_xinfo( void * pMem, HB_USHORT * puiLine )
+{
+   HB_TRACE( HB_TR_DEBUG, ( "hb_xinfo(%p,%p)", pMem, puiLine ) );
+
+#ifdef HB_FM_STATISTICS
+   {
+      PHB_MEMINFO pMemBlock = HB_FM_PTR( pMem );
+
+      if( puiLine )
+         * puiLine = pMemBlock->uiProcLine;
+
+      return pMemBlock->szProcName;
+   }
+#else
+
+   HB_SYMBOL_UNUSED( pMem );
+
+   if( puiLine )
+      * puiLine = 0;
+
+   return NULL;
+#endif
+}
+
 void hb_xinit( void ) /* Initialize fixed memory subsystem */
 {
    HB_TRACE( HB_TR_DEBUG, ( "hb_xinit()" ) );
@@ -1155,7 +1182,7 @@ void hb_xexit( void ) /* Deinitialize fixed memory subsystem */
             hb_dateTimeStr( szTime );
 
             fprintf( hLog, HB_I_( "Application Memory Allocation Report - %s\n" ), hb_cmdargARGVN( 0 ) );
-            fprintf( hLog, HB_I_( "Terminated at: %04d.%02d.%02d %s\n" ), iYear, iMonth, iDay, szTime );
+            fprintf( hLog, HB_I_( "Terminated at: %04d-%02d-%02d %s\n" ), iYear, iMonth, iDay, szTime );
             if( s_szInfo[ 0 ] )
                fprintf( hLog, HB_I_( "Info: %s\n" ), s_szInfo );
             fprintf( hLog, "%s\n", buffer );
@@ -1353,7 +1380,7 @@ HB_SIZE hb_xquery( int iMode )
             union REGS regs;
             regs.HB_XREGS.ax = 0;
             HB_DOS_INT86( 0x12, &regs, &regs );
-            iMode = regs.h.al;
+            nResult = regs.w.ax;
          }
 #else
          nResult = 9999;

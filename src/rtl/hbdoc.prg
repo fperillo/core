@@ -2,7 +2,7 @@
  * Harbour Project source code:
  * HBDOC reader
  *
- * Copyright 2010 Viktor Szakats (harbour syenar.net)
+ * Copyright 2010 Viktor Szakats (vszakats.net/harbour)
  * www - http://harbour-project.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -211,7 +211,6 @@ STATIC PROCEDURE __hbdoc__read_stream( aEntry, cFile, cFileName, hMeta, aErrMsg 
             AAdd( aEntry, hEntry )
          ENDIF
          hEntry := { => }
-         hb_HKeepOrder( hEntry, .T. )
          IF HB_ISHASH( hMeta )
             FOR EACH tmp IN hMeta
                hEntry[ tmp:__enumKey() ] := tmp

@@ -2,7 +2,7 @@
  * This Harbour script is part of the GNU Make-based build system.
  * WARNING: Running it separately is not supported.
  *
- * Copyright 2009-2010 Viktor Szakats (harbour syenar.net)
+ * Copyright 2009-2010 Viktor Szakats (vszakats.net/harbour)
  * Copyright 2003 Przemyslaw Czerpak (druzus/at/priv.onet.pl) (embedded autoinstall bash script)
  * See COPYING.txt for licensing terms.
  */
@@ -430,7 +430,20 @@ STATIC PROCEDURE mk_hb_FLinkSym( cDst, cSrc )
    IF hb_FLinkSym( cDst, cSrc ) == 0
       OutStd( hb_StrFormat( "! Symlink: %1$s <= %2$s", cDst, cSrc ) + hb_eol() )
    ELSE
-      OutStd( hb_StrFormat( "! Error: Creating symlink %1$s <= %2$s", cDst, cSrc ) + hb_eol() )
+      OutStd( hb_StrFormat( "! Error: Creating symlink %1$s <= %2$s (%3$d)", cDst, cSrc, FError() ) + hb_eol() )
+      IF FError() == 5 .AND. Empty( hb_FNameDir( cDst ) )
+         cDst := hb_FnameMerge( hb_FNameDir( cSrc ), cDst )
+         IF hb_FLink( cDst, cSrc ) == 0
+            OutStd( hb_StrFormat( "! Hardlink: %1$s <= %2$s", cDst, cSrc ) + hb_eol() )
+         ELSE
+            OutStd( hb_StrFormat( "! Error: Creating hardlink %1$s <= %2$s (%3$d)", cDst, cSrc, FError() ) + hb_eol() )
+            IF hb_FCopy( cDst, cSrc ) == 0
+               OutStd( hb_StrFormat( "! Copyfile: %1$s <= %2$s", cDst, cSrc ) + hb_eol() )
+            ELSE
+               OutStd( hb_StrFormat( "! Error: Copying file %1$s <= %2$s (%3$d)", cDst, cSrc, FError() ) + hb_eol() )
+            ENDIF
+         ENDIF
+      ENDIF
    ENDIF
 
    RETURN

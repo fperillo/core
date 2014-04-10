@@ -591,6 +591,7 @@ typedef struct
    HB_BOOL   fQuietSet;             /* do not show standard information (default) */
    HB_BOOL   fQuiet;                /* do not show standard information (current) */
    HB_BOOL   fEscStr;               /* use \ in strings as escape character */
+   HB_BOOL   fMultiLineStr;         /* allow to define multiline [] and e"" strings using ; as line concatenator */
    HB_BOOL   fError;                /* indicates error in last operation */
    int       iErrors;               /* number of error during preprocessing */
    int       iCondCompile;          /* current conditional compilation flag, when not 0 disable preprocessing and output */
@@ -679,7 +680,7 @@ extern HB_EXPORT int     hb_pp_errorCount( PHB_PP_STATE pState );
 
 extern HB_EXPORT void    hb_pp_tokenUpper( PHB_PP_TOKEN pToken );
 extern HB_EXPORT void    hb_pp_tokenToString( PHB_PP_STATE pState, PHB_PP_TOKEN pToken );
-extern HB_EXPORT char *  hb_pp_tokenBlockString( PHB_PP_STATE pState, PHB_PP_TOKEN pToken, int * piType, int * piLen );
+extern HB_EXPORT char *  hb_pp_tokenBlockString( PHB_PP_STATE pState, PHB_PP_TOKEN pToken, int * piType, HB_SIZE * pnLen );
 extern HB_EXPORT PHB_PP_STATE hb_pp_lexNew( const char * pString, HB_SIZE nLen );
 extern HB_EXPORT PHB_PP_TOKEN hb_pp_lexGet( PHB_PP_STATE pState );
 extern HB_EXPORT PHB_PP_TOKEN hb_pp_tokenGet( PHB_PP_STATE pState );

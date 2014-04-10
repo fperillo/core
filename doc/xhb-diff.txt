@@ -1,4 +1,3 @@
-
 This text describes most important differences between Harbour and xHarbour
 with some references to Clipper and other compatible compilers like Xbase++,
 CLIP, FlagShip.
@@ -10,7 +9,7 @@ It describes status of both compiler at the end of October 2009:
 
 Przemek,
 
-(Przemyslaw Czerpak, druzus/at/acn.waw.pl)
+(Przemyslaw Czerpak, druzus /at/ priv.onet.pl)
 
 
 
@@ -290,18 +289,21 @@ information about the order in which items were added to hash array and
 set of functions with HAA prefix to operate on hash array items using this
 index instead of real position in hash array, i.e. HAAGETVALUEAT() which
 works like HGETVALUEAT().
-In Harbour such functionality also exists and it's enabled by HB_HKEEPORDER()
-function but the internal implementation is completely different. Harbour
+In Harbour such functionality also exists and is enabled by default in all
+hash array but the internal implementation is completely different. Harbour
 does not emulate associative arrays by special index which keeps assign order
 but it uses real natural order in hash array. It means that associative array
 indexes are equal to regular hash indexes so it does not need any translation
 between them and Harbour users can use regular hash array functions for
 associative array indexes. So separated functions for accessing by other
 index are not necessary. The Harbour implementation is also more efficient
-because it does not introduce linear index updated each time new key is
+because it does not introduce linear index updating each time new key is
 added to hash array.
 Harbour emulates HAA*() xHarbour functions in XHB library but only for
 compatibility with existing xHarbour code.
+This functionality can be disabled for each hash array in Harbour by
+HB_HKEEPORDER() function which sorts key-value pairs in hash array and
+removes the access index.
 
 
 
@@ -739,12 +741,12 @@ If it's possible then for macrocodeblocks Harbour compiler tries to
 generate early eval code in which macros are expanded when codeblock
 is created. Otherwise macros are expanded each time codeblock is
 evaluated.
-xHarbour has also similar extension but limited to only to macro
-variables and it works only if other macros are not used in the
-same expression. When more complicated examples are create xHarbour
-compiler generates broken code which generate RTE or GPF during
-execution. It also does not support codeblocks which contain mixed
-macros and refuse to compile such code.
+xHarbour has also similar extension but limited to macro variables
+and it works only if other macros are not used in the same expression.
+When more complicated examples are created xHarbour compiler generates
+broken code which causes RTE or GPF during execution. It also does not
+support codeblocks which contain mixed macros and refuse to compile
+such code.
 
 This example illustrates macros with declared symbols.
 
@@ -2034,14 +2036,13 @@ Most of core code had been rewritten to be reentrant safe so it does
 not have to be protected by any mutexes what greatly helps in
 scalability. Below is a short description which shows which resources
 are thread local which ones are shared and how they are initialized:
-      Thread attributes inherited from parent thread:
+      Thread local attributes inherited from parent thread:
          - code page
          - language
          - SETs
          - default RDD
-         - active GT driver/console window
          - I18N translation set
-      Thread attributes initialized to default value:
+      Thread local attributes initialized to default value:
          - public variable GetList := {}
            (of course if public variables are not shared with parent
            thread).
@@ -2052,6 +2053,13 @@ are thread local which ones are shared and how they are initialized:
          - RDDI_* settings in core RDDs (some 3-rd party RDDs may use
            global settings)
          - thread static variables
+         - SETKEY() are reset to empty array (Clipper compatible automatic
+           binding between F1 key and HELP() if such function/procedure was
+           registered in HVM is done only for main thread).
+      Other thread local resources:
+         - memvar (public and private) variables (except the ones which
+           are shared with parent threads)
+         - work areas
       Resources which can be shared or copied form parent to child thread
       on user request when thread is created:
          - public variables
@@ -2063,13 +2071,16 @@ are thread local which ones are shared and how they are initialized:
          - GT drivers
          - lang modules
          - codepage modules
-      Global resources:
+         - active GT driver/console window (by default GT is inherited
+           from parent thread so also all GT internal settings are shared
+           between threads using the same GT anyhow each thread can create
+           new GT and set it as its own GT driver - such functionality is
+           available only in this GTs which can use independent system
+           resources for input and output, i.e. separate windows in GUI
+           GTs like GTWVT, GTXWC, GTQTC or input/output handles in terminal
+           stream GTs like GTCGI, GTSTD, GTTRM).
+      Other global resources:
          - .prg static variables (Harbour core code does not use them)
-      Thread local resources:
-         - memvar (public and private) variables (except the ones which
-           are shared with parent threads)
-         - work areas
-         - thread static variables
 In practice the only one not synced automatically element in Harbour
 is write access to the same item with complex variable. This part
 have to be synced by user and automatic synchronization here will

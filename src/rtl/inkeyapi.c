@@ -367,7 +367,7 @@ HB_SIZE hb_inkeyKeyString( int iKey, char * buffer, HB_SIZE nSize )
    {
       if( HB_INKEY_ISCHAR( iKey ) )
          iKey = HB_INKEY_VALUE( iKey );
-      if( iKey >= 32 && iKey <= 255 )
+      if( iKey >= 32 && iKey <= 255 && iKey != 127 )
       {
          PHB_CODEPAGE cdp = hb_vmCDP();
          nLen = hb_cdpTextPutU16( cdp, buffer, nSize,
@@ -377,7 +377,7 @@ HB_SIZE hb_inkeyKeyString( int iKey, char * buffer, HB_SIZE nSize )
    return nLen;
 }
 
-int s_inkeyTransChar( int iKey, int iFlags, const HB_KEY_VALUE * pKeyVal )
+static int s_inkeyTransChar( int iKey, int iFlags, const HB_KEY_VALUE * pKeyVal )
 {
    if( ( iFlags & HB_KF_KEYPAD ) != 0 &&
        ( iFlags & ( HB_KF_ALT | HB_KF_CTRL ) ) != 0 )
@@ -484,4 +484,16 @@ int hb_inkeyKeyMod( int iKey )
       iFlags = HB_INKEY_FLAGS( iKey );
 
    return iFlags;
+}
+
+int hb_inkeyKeyVal( int iKey )
+{
+   int iValue = 0;
+
+   HB_TRACE( HB_TR_DEBUG, ( "hb_inkeyKeyVal(%d)", iKey ) );
+
+   if( HB_INKEY_ISEXT( iKey ) && ! HB_INKEY_ISMOUSEPOS( iKey ) )
+      iValue = HB_INKEY_VALUE( iKey );
+
+   return iValue;
 }

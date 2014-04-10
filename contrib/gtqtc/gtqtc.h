@@ -53,6 +53,7 @@
 #define HB_GT_NAME  QTC
 
 #include <QtCore/QThread>
+#include <QtCore/QMutex>
 
 #include <QtGui/QFont>
 #include <QtGui/QColor>
@@ -321,14 +322,16 @@ typedef struct
    QIcon *     qIcon;                        /* application icon */
    QString *   wndTitle;                     /* window title */
 
-   HB_BOOL     fClosable;                    /* accept ALT+F4 and/or [x] button as CTRL+BREAK */
    HB_BOOL     fAltEnter;                    /* ALT+ENTER switch between fullscreen mode */
    HB_BOOL     fResizable;                   /* enable/disable window resizing */
+   HB_BOOL     fResizeInc;                   /* enable/disable resize progression */
    HB_BOOL     fMaximized;                   /* enter/leave mximize mode */
    HB_BOOL     fFullScreen;                  /* enable/disable fullscreen mode */
    HB_BOOL     fSelectCopy;                  /* allow marking texts by mouse left button with shift */
+   HB_BOOL     fRepaint;                     /* force internal image repainting */
 
    int         iResizeMode;                  /* Sets the resizing mode either to FONT or ROWS */
+   int         iCloseMode;                   /* ==0 accept ALT+F4 and/or [x] button as CTRL+BREAK, >=1 generate HB_K_CLOSE, ==2 disable [x] */
 }
 HB_GTQTC, * PHB_GTQTC;
 
@@ -380,7 +383,7 @@ class QTCWindow : public QMainWindow
 
 public:
     QTCWindow( PHB_GTQTC pQTC );
-    virtual ~QTCWindow();
+    virtual ~QTCWindow( void );
 
     QTConsole * qConsole;
     void setWindowSize( void );

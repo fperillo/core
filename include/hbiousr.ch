@@ -1,8 +1,8 @@
 /*
  * Harbour Project source code:
- * FieldDeci() FlagShip compatible function
+ *    IOUSRD - module to create new FILE IO redirectors at prg level
  *
- * Copyright 2010 Przemyslaw Czerpak <druzus@acn.waw.pl>
+ * Copyright 2014 Przemyslaw Czerpak <druzus / at / priv.onet.pl>
  * www - http://harbour-project.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -46,6 +46,48 @@
  *
  */
 
-#include "hbapi.h"
+#ifndef _HBIOUSR_CH
+#define _HBIOUSR_CH
 
-HB_FUNC_TRANSLATE( FIELDDECI, HB_FIELDDEC )
+/* method numbers */
+#define IOUSR_ACCEPT                 1
+#define IOUSR_EXISTS                 2
+#define IOUSR_DELETE                 3
+#define IOUSR_RENAME                 4
+#define IOUSR_COPY                   5
+
+#define IOUSR_DIREXISTS              6
+#define IOUSR_DIRMAKE                7
+#define IOUSR_DIRREMOVE              8
+#define IOUSR_DIRSPACE               9
+#define IOUSR_DIRECTORY             10
+
+#define IOUSR_TIMEGET               11
+#define IOUSR_TIMESET               12
+#define IOUSR_ATTRGET               13
+#define IOUSR_ATTRSET               14
+
+#define IOUSR_LINK                  15
+#define IOUSR_LINKSYM               16
+#define IOUSR_LINKREAD              17
+
+#define IOUSR_OPEN                  18
+#define IOUSR_CLOSE                 19
+#define IOUSR_LOCK                  20
+#define IOUSR_LOCKTEST              21
+#define IOUSR_READ                  22
+#define IOUSR_WRITE                 23
+#define IOUSR_READAT                24
+#define IOUSR_WRITEAT               25
+#define IOUSR_TRUNCAT               26
+#define IOUSR_SEEK                  27
+#define IOUSR_SIZE                  28
+#define IOUSR_EOF                   29
+#define IOUSR_FLUSH                 30
+#define IOUSR_COMMIT                31
+#define IOUSR_CONFIGURE             32
+#define IOUSR_HANDLE                33
+
+#define IOUSR_METHODCOUNT           33
+
+#endif /* _HBIOUSR_CH */
